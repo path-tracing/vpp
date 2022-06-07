@@ -85,6 +85,19 @@ autoreply define sr_policy_add
   vl_api_srv6_sid_list_t sids;
 };
 
+autoreply define sr_policy_add_v2
+{
+  u32 client_index;
+  u32 context;
+  vl_api_ip6_address_t bsid_addr;
+  u32 weight;
+  bool is_encap;
+  u32 fib_table;
+  vl_api_sr_policy_type_t type;
+  vl_api_srv6_sid_list_t sids;
+};
+
+
 /** \brief IPv6 SR policy modification
     @param client_index - opaque cookie to identify the sender
     @param context - sender context, to match reply w/ request

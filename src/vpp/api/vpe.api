@@ -44,6 +44,7 @@ import "vpp/api/vpe_types.api";
  * SESSION APIs: .../vnet/session/{session.api session_api.c}
  * MPLS APIs: see .../src/vnet/mpls/{mpls.api, mpls_api.c}
  * SR APIs: see .../src/vnet/srv6/{sr.api, sr_api.c}
+ * PT APIs: see .../src/vnet/srv6/{pt.api, pt_api.c}
  * CLASSIFY APIs: see ... /src/vnet/classify/{classify.api, classify_api.c}
  * FLOW APIs: see ... /src/vnet/flow/{flow.api, flow_api.c}
  * DHCP APIs: see ... /src/vnet/dhcp/{dhcp.api, dhcp_api.c}

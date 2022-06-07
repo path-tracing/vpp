@@ -47,7 +47,7 @@
 #include <vnet/fib/ip6_fib.h>
 #include <vnet/dpo/dpo.h>
 #include <vnet/dpo/replicate_dpo.h>
-
+#include <vnet/pt/pt.h>
 #include <vppinfra/error.h>
 #include <vppinfra/elog.h>
 
@@ -195,55 +195,79 @@ VLIB_CLI_COMMAND (set_sr_hop_limit_command, static) = {
  * @return precomputed rewrite string for encapsulation
  */
 static inline u8 *
-compute_rewrite_encaps (ip6_address_t * sl)
+compute_rewrite_encaps (ip6_address_t *sl, u8 type)
 {
   ip6_header_t *iph;
   ip6_sr_header_t *srh;
+  ip6_sr_pt_tlv_t *srh_pt_tlv;
   ip6_address_t *addrp, *this_address;
   u32 header_length = 0;
   u8 *rs = NULL;
 
   header_length = 0;
   header_length += IPv6_DEFAULT_HEADER_LENGTH;
-  if (vec_len (sl) > 1)
-    {
-      header_length += sizeof (ip6_sr_header_t);
-      header_length += vec_len (sl) * sizeof (ip6_address_t);
-    }
 
+  if (!(vec_len (sl) > 1) && type != SR_POLICY_TYPE_TEF)
+    goto ip6_header;
+
+  header_length += sizeof (ip6_sr_header_t);
+
+  if (vec_len (sl) > 1)
+    header_length += vec_len (sl) * sizeof (ip6_address_t);
+
+  if (type == SR_POLICY_TYPE_TEF)
+      header_length += sizeof (ip6_sr_pt_tlv_t);
+
+ip6_header:
   vec_validate (rs, header_length - 1);
 
   iph = (ip6_header_t *) rs;
   iph->ip_version_traffic_class_and_flow_label =
     clib_host_to_net_u32 (0 | ((6 & 0xF) << 28));
-  iph->src_address.as_u64[0] = sr_pr_encaps_src.as_u64[0];
-  iph->src_address.as_u64[1] = sr_pr_encaps_src.as_u64[1];
   iph->payload_length = header_length - IPv6_DEFAULT_HEADER_LENGTH;
   iph->protocol = IP_PROTOCOL_IPV6;
   iph->hop_limit = sr_pr_encaps_hop_limit;
+  iph->src_address.as_u64[0] = sr_pr_encaps_src.as_u64[0];
+  iph->src_address.as_u64[1] = sr_pr_encaps_src.as_u64[1];
+  iph->dst_address.as_u64[0] = sl->as_u64[0];
+  iph->dst_address.as_u64[1] = sl->as_u64[1];
+
+  if (!(vec_len (sl) > 1) && type != SR_POLICY_TYPE_TEF)
+    goto end;
+
+  srh = (ip6_sr_header_t *) (iph + 1);
+  iph->protocol = IP_PROTOCOL_IPV6_ROUTE;
+  srh->protocol = IP_PROTOCOL_IPV6;
+  srh->length = 0;
+  srh->type = ROUTING_HEADER_TYPE_SR;
+  srh->segments_left = vec_len (sl) - 1;
+  srh->last_entry = 255;
+  srh->flags = 0x00;
+  srh->tag = 0x0000;
 
   if (vec_len (sl) > 1)
     {
-      srh = (ip6_sr_header_t *) (iph + 1);
-      iph->protocol = IP_PROTOCOL_IPV6_ROUTE;
-      srh->protocol = IP_PROTOCOL_IPV6;
-      srh->type = ROUTING_HEADER_TYPE_SR;
-      srh->segments_left = vec_len (sl) - 1;
       srh->last_entry = vec_len (sl) - 1;
-      srh->length = ((sizeof (ip6_sr_header_t) +
-		      (vec_len (sl) * sizeof (ip6_address_t))) / 8) - 1;
-      srh->flags = 0x00;
-      srh->tag = 0x0000;
+      srh->length += ((vec_len (sl) * sizeof (ip6_address_t)) / 8);
+
       addrp = srh->segments + vec_len (sl) - 1;
       vec_foreach (this_address, sl)
-      {
-	clib_memcpy_fast (addrp->as_u8, this_address->as_u8,
-			  sizeof (ip6_address_t));
-	addrp--;
-      }
+	{
+	  clib_memcpy_fast (addrp->as_u8, this_address->as_u8,
+			    sizeof (ip6_address_t));
+	  addrp--;
+	}
     }
-  iph->dst_address.as_u64[0] = sl->as_u64[0];
-  iph->dst_address.as_u64[1] = sl->as_u64[1];
+
+  if (type == SR_POLICY_TYPE_TEF)
+    {
+      srh->length += (sizeof (ip6_sr_pt_tlv_t) / 8);
+      srh_pt_tlv = (ip6_sr_pt_tlv_t *) (srh->segments + (vec_len (sl) - 1));
+      srh_pt_tlv->type = IP6_SRH_PT_TLV_TYPE;
+      srh_pt_tlv->length = IP6_SRH_PT_TLV_LEN;
+    }
+
+end:
   return rs;
 }
 
@@ -255,7 +279,7 @@ compute_rewrite_encaps (ip6_address_t * sl)
  * @return precomputed rewrite string for SRH insertion
  */
 static inline u8 *
-compute_rewrite_insert (ip6_address_t * sl)
+compute_rewrite_insert (ip6_address_t *sl, u8 type)
 {
   ip6_sr_header_t *srh;
   ip6_address_t *addrp, *this_address;
@@ -358,18 +382,19 @@ create_sl (ip6_sr_policy_t * sr_policy, ip6_address_t * sl, u32 weight,
     (weight != (u32) ~ 0 ? weight : SR_SEGMENT_LIST_WEIGHT_DEFAULT);
 
   segment_list->segments = vec_dup (sl);
+  segment_list->policy_type = sr_policy->type;
 
   segment_list->egress_fib_table =
     ip6_fib_index_from_table_id (sr_policy->fib_table);
 
   if (is_encap)
     {
-      segment_list->rewrite = compute_rewrite_encaps (sl);
+      segment_list->rewrite = compute_rewrite_encaps (sl, sr_policy->type);
       segment_list->rewrite_bsid = segment_list->rewrite;
     }
   else
     {
-      segment_list->rewrite = compute_rewrite_insert (sl);
+      segment_list->rewrite = compute_rewrite_insert (sl, sr_policy->type);
       segment_list->rewrite_bsid = compute_rewrite_bsid (sl);
     }
 
@@ -632,9 +657,9 @@ update_replicate (ip6_sr_policy_t * sr_policy)
  * @return 0 if correct, else error
  */
 int
-sr_policy_add (ip6_address_t * bsid, ip6_address_t * segments,
-	       u32 weight, u8 behavior, u32 fib_table, u8 is_encap,
-	       u16 plugin, void *ls_plugin_mem)
+sr_policy_add (ip6_address_t *bsid, ip6_address_t *segments, u32 weight,
+	       u8 type, u32 fib_table, u8 is_encap, u16 plugin,
+	       void *ls_plugin_mem)
 {
   ip6_sr_main_t *sm = &sr_main;
   ip6_sr_policy_t *sr_policy = 0;
@@ -675,7 +700,7 @@ sr_policy_add (ip6_address_t * bsid, ip6_address_t * segments,
   pool_get (sm->sr_policies, sr_policy);
   clib_memset (sr_policy, 0, sizeof (*sr_policy));
   clib_memcpy_fast (&sr_policy->bsid, bsid, sizeof (ip6_address_t));
-  sr_policy->type = behavior;
+  sr_policy->type = type;
   sr_policy->fib_table = (fib_table != (u32) ~ 0 ? fib_table : 0);	//Is default FIB 0 ?
   sr_policy->is_encap = is_encap;
 
@@ -704,7 +729,8 @@ sr_policy_add (ip6_address_t * bsid, ip6_address_t * segments,
     }
 
   /* Create IPv6 FIB for the BindingSID attached to the DPO of the only SL */
-  if (sr_policy->type == SR_POLICY_TYPE_DEFAULT)
+  if (sr_policy->type == SR_POLICY_TYPE_DEFAULT |
+      sr_policy->type == SR_POLICY_TYPE_TEF)
     update_lb (sr_policy);
   else if (sr_policy->type == SR_POLICY_TYPE_SPRAY)
     update_replicate (sr_policy);
@@ -936,7 +962,7 @@ sr_policy_command_fn (vlib_main_t * vm, unformat_input_t * input,
   ip6_address_t *segments = 0, *this_seg;
   u8 operation = 0;
   char is_encap = 1;
-  char is_spray = 0;
+  u8 type = SR_POLICY_TYPE_DEFAULT;
   u16 behavior = 0;
   void *ls_plugin_mem = 0;
 
@@ -975,7 +1001,9 @@ sr_policy_command_fn (vlib_main_t * vm, unformat_input_t * input,
       else if (unformat (input, "insert"))
 	is_encap = 0;
       else if (unformat (input, "spray"))
-	is_spray = 1;
+	type = SR_POLICY_TYPE_SPRAY;
+      else if (unformat (input, "tef"))
+	type = SR_POLICY_TYPE_TEF;
       else if (!behavior && unformat (input, "behavior"))
 	{
 	  sr_policy_fn_registration_t *plugin = 0, **vec_plugins = 0;
@@ -1024,9 +1052,7 @@ sr_policy_command_fn (vlib_main_t * vm, unformat_input_t * input,
       if (vec_len (segments) == 0)
 	return clib_error_return (0, "No Segment List specified");
 
-      rv = sr_policy_add (&bsid, segments, weight,
-			  (is_spray ? SR_POLICY_TYPE_SPRAY :
-			   SR_POLICY_TYPE_DEFAULT), fib_table, is_encap,
+      rv = sr_policy_add (&bsid, segments, weight, type, fib_table, is_encap,
 			  behavior, ls_plugin_mem);
 
       vec_free (segments);
@@ -1137,9 +1163,18 @@ show_sr_policies_command_fn (vlib_main_t * vm, unformat_input_t * input,
     vlib_cli_output (vm, "\tBehavior: %s",
 		     (sr_policy->is_encap ? "Encapsulation" :
 		      "SRH insertion"));
-    vlib_cli_output (vm, "\tType: %s",
-		     (sr_policy->type ==
-		      SR_POLICY_TYPE_DEFAULT ? "Default" : "Spray"));
+    switch (sr_policy->type)
+      {
+      case SR_POLICY_TYPE_SPRAY:
+	vlib_cli_output (vm, "\tType: %s", "Spray");
+	break;
+      case SR_POLICY_TYPE_TEF:
+	vlib_cli_output (vm, "\tType: %s", "TEF");
+	break;
+      default:
+	vlib_cli_output (vm, "\tType: %s", "Default");
+	break;
+      }
     vlib_cli_output (vm, "\tFIB table: %u",
 		     (sr_policy->fib_table !=
 		      (u32) ~ 0 ? sr_policy->fib_table : 0));
@@ -1231,14 +1266,44 @@ format_sr_policy_rewrite_trace (u8 * s, va_list * args)
 
   return s;
 }
+/**
+ * @brief SRH PT-TLV processing
+ */
+static_always_inline void
+pt_sink_node (vlib_node_runtime_t *node, vlib_buffer_t *b0, ip6_header_t *ip0)
+{
+  ip6_sr_header_t *srh;
+  ip6_sr_pt_tlv_t *srh_pt_tlv;
+  pt_t64_t t64;
+  pt_iface_t *ls = 0;
+  srh = (ip6_sr_header_t *) (ip0 + 1);
 
+  if (srh->last_entry != 255)
+    srh_pt_tlv =
+      (ip6_sr_pt_tlv_t *) ((u8 *) ip0 + sizeof (ip6_header_t) +
+			   sizeof (ip6_sr_header_t) +
+			   sizeof (ip6_address_t) * (srh->last_entry + 1));
+  else
+    srh_pt_tlv = (ip6_sr_pt_tlv_t *) ((u8 *) ip0 + sizeof (ip6_header_t) +
+				      sizeof (ip6_sr_header_t));
+
+  unix_time_now_nsec_fraction (&t64.sec, &t64.nsec);
+  ls = pt_iface_find(vnet_buffer (b0)->sw_if_index[VLIB_RX]);
+  if (ls)
+  {
+    srh_pt_tlv->id_ld  = htobe16 (ls->id<< 4);
+    srh_pt_tlv->id_ld |= ls->ingress_load;  
+    srh_pt_tlv->t64.sec = htobe32 (t64.sec);
+    srh_pt_tlv->t64.nsec = htobe32 (t64.nsec);
+  }
+}
 /**
  * @brief IPv6 encapsulation processing as per RFC2473
  */
 static_always_inline void
-encaps_processing_v6 (vlib_node_runtime_t * node,
-		      vlib_buffer_t * b0,
-		      ip6_header_t * ip0, ip6_header_t * ip0_encap)
+encaps_processing_v6 (vlib_node_runtime_t *node, vlib_buffer_t *b0,
+		      ip6_header_t *ip0, ip6_header_t *ip0_encap,
+		      u8 policy_type)
 {
   u32 new_l0;
   u32 flow_label;
@@ -1256,6 +1321,8 @@ encaps_processing_v6 (vlib_node_runtime_t * node,
        ip0_encap->ip_version_traffic_class_and_flow_label) &
      0xfff00000) |
     (flow_label & 0x0000ffff));
+  if (policy_type == SR_POLICY_TYPE_TEF)
+    pt_sink_node (node, b0, ip0);
 }
 
 /**
@@ -1373,10 +1440,10 @@ sr_policy_rewrite_encaps (vlib_main_t * vm, vlib_node_runtime_t * node,
 	  ip2 = vlib_buffer_get_current (b2);
 	  ip3 = vlib_buffer_get_current (b3);
 
-	  encaps_processing_v6 (node, b0, ip0, ip0_encap);
-	  encaps_processing_v6 (node, b1, ip1, ip1_encap);
-	  encaps_processing_v6 (node, b2, ip2, ip2_encap);
-	  encaps_processing_v6 (node, b3, ip3, ip3_encap);
+	  encaps_processing_v6 (node, b0, ip0, ip0_encap, sl0->policy_type);
+	  encaps_processing_v6 (node, b1, ip1, ip1_encap, sl1->policy_type);
+	  encaps_processing_v6 (node, b2, ip2, ip2_encap, sl2->policy_type);
+	  encaps_processing_v6 (node, b3, ip3, ip3_encap, sl3->policy_type);
 
 	  vnet_buffer (b0)->sw_if_index[VLIB_TX] = sl0->egress_fib_table;
 	  vnet_buffer (b1)->sw_if_index[VLIB_TX] = sl1->egress_fib_table;
@@ -1463,7 +1530,7 @@ sr_policy_rewrite_encaps (vlib_main_t * vm, vlib_node_runtime_t * node,
 
 	  ip0 = vlib_buffer_get_current (b0);
 
-	  encaps_processing_v6 (node, b0, ip0, ip0_encap);
+	  encaps_processing_v6 (node, b0, ip0, ip0_encap, sl0->policy_type);
 
 	  vnet_buffer (b0)->sw_if_index[VLIB_TX] = sl0->egress_fib_table;
 
@@ -3087,10 +3154,9 @@ VLIB_REGISTER_NODE (sr_policy_rewrite_b_insert_node) = {
  * @brief Function BSID encapsulation
  */
 static_always_inline void
-end_bsid_encaps_srh_processing (vlib_node_runtime_t * node,
-				vlib_buffer_t * b0,
-				ip6_header_t * ip0,
-				ip6_sr_header_t * sr0, u32 * next0)
+end_bsid_encaps_srh_processing (vlib_node_runtime_t *node, vlib_buffer_t *b0,
+				ip6_header_t *ip0, ip6_sr_header_t *sr0,
+				u32 *next0, u8 policy_type)
 {
   ip6_address_t *new_dst0;
 
@@ -3108,6 +3174,8 @@ end_bsid_encaps_srh_processing (vlib_node_runtime_t * node,
 	  ip0->dst_address.as_u64[1] = new_dst0->as_u64[1];
 	  return;
 	}
+      else if (sr0->segments_left == 0 && policy_type == SR_POLICY_TYPE_TEF)
+	return;
     }
 
 error_bsid_encaps:
@@ -3224,10 +3292,14 @@ sr_policy_rewrite_b_encaps (vlib_main_t * vm, vlib_node_runtime_t * node,
 	    ip6_ext_header_find (vm, b3, ip3_encap, IP_PROTOCOL_IPV6_ROUTE,
 				 NULL);
 
-	  end_bsid_encaps_srh_processing (node, b0, ip0_encap, sr0, &next0);
-	  end_bsid_encaps_srh_processing (node, b1, ip1_encap, sr1, &next1);
-	  end_bsid_encaps_srh_processing (node, b2, ip2_encap, sr2, &next2);
-	  end_bsid_encaps_srh_processing (node, b3, ip3_encap, sr3, &next3);
+	  end_bsid_encaps_srh_processing (node, b0, ip0_encap, sr0, &next0,
+					  +sl0->policy_type);
+	  end_bsid_encaps_srh_processing (node, b1, ip1_encap, sr1, &next1,
+					  +sl1->policy_type);
+	  end_bsid_encaps_srh_processing (node, b2, ip2_encap, sr2, &next2,
+					  +sl2->policy_type);
+	  end_bsid_encaps_srh_processing (node, b3, ip3_encap, sr3, &next3,
+					  +sl3->policy_type);
 
 	  clib_memcpy_fast (((u8 *) ip0_encap) - vec_len (sl0->rewrite),
 			    sl0->rewrite, vec_len (sl0->rewrite));
@@ -3248,10 +3320,10 @@ sr_policy_rewrite_b_encaps (vlib_main_t * vm, vlib_node_runtime_t * node,
 	  ip2 = vlib_buffer_get_current (b2);
 	  ip3 = vlib_buffer_get_current (b3);
 
-	  encaps_processing_v6 (node, b0, ip0, ip0_encap);
-	  encaps_processing_v6 (node, b1, ip1, ip1_encap);
-	  encaps_processing_v6 (node, b2, ip2, ip2_encap);
-	  encaps_processing_v6 (node, b3, ip3, ip3_encap);
+	  encaps_processing_v6 (node, b0, ip0, ip0_encap, sl0->policy_type);
+	  encaps_processing_v6 (node, b1, ip1, ip1_encap, sl1->policy_type);
+	  encaps_processing_v6 (node, b2, ip2, ip2_encap, sl2->policy_type);
+	  encaps_processing_v6 (node, b3, ip3, ip3_encap, sl3->policy_type);
 
 	  if (PREDICT_FALSE ((node->flags & VLIB_NODE_FLAG_TRACE)))
 	    {
@@ -3330,7 +3402,9 @@ sr_policy_rewrite_b_encaps (vlib_main_t * vm, vlib_node_runtime_t * node,
 	  sr0 =
 	    ip6_ext_header_find (vm, b0, ip0_encap, IP_PROTOCOL_IPV6_ROUTE,
 				 NULL);
-	  end_bsid_encaps_srh_processing (node, b0, ip0_encap, sr0, &next0);
+
+	  end_bsid_encaps_srh_processing (node, b0, ip0_encap, sr0, &next0,
+					  +sl0->policy_type);
 
 	  clib_memcpy_fast (((u8 *) ip0_encap) - vec_len (sl0->rewrite),
 			    sl0->rewrite, vec_len (sl0->rewrite));
@@ -3338,7 +3412,7 @@ sr_policy_rewrite_b_encaps (vlib_main_t * vm, vlib_node_runtime_t * node,
 
 	  ip0 = vlib_buffer_get_current (b0);
 
-	  encaps_processing_v6 (node, b0, ip0, ip0_encap);
+	  encaps_processing_v6 (node, b0, ip0, ip0_encap, sl0->policy_type);
 
 	  if (PREDICT_FALSE (node->flags & VLIB_NODE_FLAG_TRACE) &&
 	      PREDICT_FALSE (b0->flags & VLIB_BUFFER_IS_TRACED))

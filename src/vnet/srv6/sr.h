@@ -75,6 +75,7 @@ typedef struct
 
   u8 *rewrite;					/**< Precomputed rewrite header */
   u8 *rewrite_bsid;				/**< Precomputed rewrite header for bindingSID */
+  u8 policy_type;
 
   u32 egress_fib_table; /**< Egress FIB table for encap packet */
 
@@ -89,6 +90,8 @@ typedef struct
 /* SR policy types */
 #define SR_POLICY_TYPE_DEFAULT 0
 #define SR_POLICY_TYPE_SPRAY 1
+#define SR_POLICY_TYPE_TEF     2
+
 /**
  * @brief SR Policy
  */

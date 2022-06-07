@@ -46,18 +46,19 @@
 
 #include <vlibapi/api_helper_macros.h>
 
-#define foreach_vpe_api_msg                             \
-_(SR_LOCALSID_ADD_DEL, sr_localsid_add_del)             \
-_(SR_POLICY_ADD, sr_policy_add)                         \
-_(SR_POLICY_MOD, sr_policy_mod)                         \
-_(SR_POLICY_DEL, sr_policy_del)                         \
-_(SR_STEERING_ADD_DEL, sr_steering_add_del)             \
-_(SR_SET_ENCAP_SOURCE, sr_set_encap_source)             \
-_(SR_SET_ENCAP_HOP_LIMIT, sr_set_encap_hop_limit)       \
-_(SR_LOCALSIDS_DUMP, sr_localsids_dump)                 \
-_(SR_POLICIES_DUMP, sr_policies_dump)                   \
-_(SR_POLICIES_WITH_SL_INDEX_DUMP, sr_policies_with_sl_index_dump) \
-_(SR_STEERING_POL_DUMP, sr_steering_pol_dump)
+#define foreach_vpe_api_msg                                                   \
+  _ (SR_LOCALSID_ADD_DEL, sr_localsid_add_del)                                \
+  _ (SR_POLICY_ADD, sr_policy_add)                                            \
+  _ (SR_POLICY_ADD_V2, sr_policy_add_v2)                                      \
+  _ (SR_POLICY_MOD, sr_policy_mod)                                            \
+  _ (SR_POLICY_DEL, sr_policy_del)                                            \
+  _ (SR_STEERING_ADD_DEL, sr_steering_add_del)                                \
+  _ (SR_SET_ENCAP_SOURCE, sr_set_encap_source)                                \
+  _ (SR_SET_ENCAP_HOP_LIMIT, sr_set_encap_hop_limit)                          \
+  _ (SR_LOCALSIDS_DUMP, sr_localsids_dump)                                    \
+  _ (SR_POLICIES_DUMP, sr_policies_dump)                                      \
+  _ (SR_POLICIES_WITH_SL_INDEX_DUMP, sr_policies_with_sl_index_dump)          \
+  _ (SR_STEERING_POL_DUMP, sr_steering_pol_dump)
 
 static void vl_api_sr_localsid_add_del_t_handler
   (vl_api_sr_localsid_add_del_t * mp)
@@ -118,6 +119,36 @@ vl_api_sr_policy_add_t_handler (vl_api_sr_policy_add_t * mp)
 		      ntohl (mp->sids.weight),
 		      mp->is_spray, ntohl (mp->fib_table), mp->is_encap, 0,
 		      NULL);
+  vec_free (segments);
+
+  REPLY_MACRO (VL_API_SR_POLICY_ADD_REPLY);
+}
+
+static void
+vl_api_sr_policy_add_v2_t_handler (vl_api_sr_policy_add_v2_t *mp)
+{
+  vl_api_sr_policy_add_v2_reply_t *rmp;
+  ip6_address_t *segments = 0, *seg;
+  ip6_address_t bsid_addr;
+
+  int i;
+  for (i = 0; i < mp->sids.num_sids; i++)
+    {
+      vec_add2 (segments, seg, 1);
+      ip6_address_decode (mp->sids.sids[i], seg);
+    }
+
+  ip6_address_decode (mp->bsid_addr, &bsid_addr);
+
+  /*
+   * sr_policy_add (ip6_address_t *bsid, ip6_address_t *segments,
+   *                u32 weight, u8 behavior, u32 fib_table, u8 is_encap,
+   *                u16 behavior, void *plugin_mem)
+   */
+  int rv = 0;
+
+  rv = sr_policy_add (&bsid_addr, segments, ntohl (mp->sids.weight), mp->type,
+		      ntohl (mp->fib_table), mp->is_encap, 0, NULL);
   vec_free (segments);
 
   REPLY_MACRO (VL_API_SR_POLICY_ADD_REPLY);

@@ -48,6 +48,7 @@
 #include <vnet/session/session.api.h>
 #include <vnet/mpls/mpls.api.h>
 #include <vnet/srv6/sr.api.h>
+#include <vnet/pt/pt.api.h>
 #include <vnet/srmpls/sr_mpls.api.h>
 #include <vnet/classify/classify.api.h>
 #include <vnet/ipfix-export/ipfix_export.api.h>

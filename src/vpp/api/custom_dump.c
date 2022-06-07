@@ -38,6 +38,7 @@
 #include <vlibapi/api.h>
 #include <vlibmemory/api.h>
 #include <vnet/qos/qos_types.h>
+#include <vnet/pt/pt.h>
 
 #include <vnet/ethernet/ethernet.h>
 #include <vnet/ethernet/ethernet_types_api.h>
@@ -1264,6 +1265,101 @@ static void *vl_api_sr_policy_add_t_print
     s = format (s, "%U, ", format_ip6_address, seg);
   }
   s = format (s, "\b\b } ");
+
+  FINISH;
+}
+
+static void *
+vl_api_sr_policy_add_v2_t_print (vl_api_sr_policy_add_v2_t *mp, void *handle)
+{
+  u8 *s;
+
+  ip6_address_t *segments = 0, *seg;
+  ip6_address_t *this_address = (ip6_address_t *) mp->sids.sids;
+
+  int i;
+  for (i = 0; i < mp->sids.num_sids; i++)
+    {
+      vec_add2 (segments, seg, 1);
+      clib_memcpy (seg->as_u8, this_address->as_u8, sizeof (*this_address));
+      this_address++;
+    }
+
+  s = format (0, "SCRIPT: sr_policy_add ");
+
+  s = format (s, "BSID: %U", format_ip6_address,
+	      (ip6_address_t *) mp->bsid_addr);
+
+  s = format (
+    s, (mp->is_encap ? "Behavior: Encapsulation" : "Behavior: SRH insertion"));
+
+  s = format (s, "FIB_table: %u", (mp->fib_table));
+  switch (mp->type)
+    {
+    case SR_POLICY_TYPE_DEFAULT:
+      s = format (s, "Type: DEFAULT");
+    case SR_POLICY_TYPE_SPRAY:
+      s = format (s, "Type: SPRAY");
+    case SR_POLICY_TYPE_TEF:
+      s = format (s, "Type: TEF");
+    }
+
+  s = format (s, "SID list weight: %u", (mp->weight));
+
+  s = format (s, "{");
+  vec_foreach (seg, segments)
+    {
+      s = format (s, "%U, ", format_ip6_address, seg);
+    }
+  s = format (s, "\b\b } ");
+
+  FINISH;
+}
+
+static void *
+vl_api_pt_iface_add_t_print (vl_api_pt_iface_add_t *mp, void *handle)
+{
+  u8 *s;
+
+  s = format (0, "SCRIPT: pt_iface_add ");
+  s = format (s, "sw_if_index %d ", (mp->sw_if_index));
+  s = format (s, "id %d ", (mp->id));
+  s = format (s, "ingress_load  %d ", (mp->ingress_load));
+  s = format (s, "egress_load  %d ", (mp->egress_load));
+  s = format (s, "tts_template %d ", (mp->tts_template));
+
+  FINISH;
+}
+
+static void *
+vl_api_pt_iface_del_t_print (vl_api_pt_iface_del_t *mp, void *handle)
+{
+  u8 *s;
+
+  s = format (0, "SCRIPT: pt_iface_del ");
+  s = format (s, "sw_if_index %d ", (mp->sw_if_index));
+
+  FINISH;
+}
+
+static void *
+vl_api_pt_probe_inject_iface_add_t_print (vl_api_pt_probe_inject_iface_add_t *mp, void *handle)
+{
+  u8 *s;
+
+  s = format (0, "SCRIPT: pt_probe_inject_iface_add ");
+  s = format (s, "sw_if_index %d ", (mp->sw_if_index));
+
+  FINISH;
+}
+
+static void *
+vl_api_pt_probe_inject_iface_del_t_print (vl_api_pt_probe_inject_iface_del_t *mp, void *handle)
+{
+  u8 *s;
+
+  s = format (0, "SCRIPT: pt_probe_inject_iface_del ");
+  s = format (s, "sw_if_index %d ", (mp->sw_if_index));
 
   FINISH;
 }
@@ -2945,154 +3041,160 @@ static void * vl_api_ ## f ## _t_print          \
 foreach_no_print_function;
 #undef _
 
-#define foreach_custom_print_function                                   \
-_(CREATE_LOOPBACK, create_loopback)                                     \
-_(CREATE_LOOPBACK_INSTANCE, create_loopback_instance)                   \
-_(SW_INTERFACE_SET_FLAGS, sw_interface_set_flags)                       \
-_(SW_INTERFACE_EVENT, sw_interface_event)                               \
-_(SW_INTERFACE_ADD_DEL_ADDRESS, sw_interface_add_del_address)           \
-_(SW_INTERFACE_SET_TABLE, sw_interface_set_table)                       \
-_(SW_INTERFACE_SET_MPLS_ENABLE, sw_interface_set_mpls_enable)           \
-_(SW_INTERFACE_SET_VPATH, sw_interface_set_vpath)                       \
-_(SW_INTERFACE_SET_VXLAN_BYPASS, sw_interface_set_vxlan_bypass)         \
-_(BOND_CREATE, bond_create)                                             \
-_(BOND_CREATE2, bond_create2)                                           \
-_(BOND_DELETE, bond_delete)                                             \
-_(BOND_ADD_MEMBER, bond_add_member)                                     \
-_(BOND_DETACH_MEMBER, bond_detach_member)                               \
-_(SW_INTERFACE_SET_BOND_WEIGHT, sw_interface_set_bond_weight)           \
-_(SW_MEMBER_INTERFACE_DUMP, sw_member_interface_dump)                   \
-_(SW_BOND_INTERFACE_DUMP, sw_bond_interface_dump)                       \
-_(SW_INTERFACE_RX_PLACEMENT_DUMP, sw_interface_rx_placement_dump)       \
-_(TAP_CREATE_V2, tap_create_v2)                                         \
-_(TAP_DELETE_V2, tap_delete_v2)                                         \
-_(SW_INTERFACE_TAP_V2_DUMP, sw_interface_tap_v2_dump)                   \
-_(IP_TABLE_ADD_DEL, ip_table_add_del)                                   \
-_(MPLS_ROUTE_ADD_DEL, mpls_route_add_del)                               \
-_(MPLS_TABLE_ADD_DEL, mpls_table_add_del)                               \
-_(IP_ROUTE_ADD_DEL, ip_route_add_del)                                   \
-_(MPLS_TUNNEL_ADD_DEL, mpls_tunnel_add_del)		                \
-_(SR_MPLS_POLICY_ADD, sr_mpls_policy_add)		                \
-_(SR_MPLS_POLICY_DEL, sr_mpls_policy_del)		                \
-_(SW_INTERFACE_SET_UNNUMBERED, sw_interface_set_unnumbered)             \
-_(CREATE_VLAN_SUBIF, create_vlan_subif)                                 \
-_(CREATE_SUBIF, create_subif)                                           \
-_(IP_TABLE_REPLACE_BEGIN, ip_table_replace_begin)                       \
-_(IP_TABLE_FLUSH, ip_table_flush)                                       \
-_(IP_TABLE_REPLACE_END, ip_table_replace_end)                           \
-_(SET_IP_FLOW_HASH, set_ip_flow_hash)                                   \
-_(L2_PATCH_ADD_DEL, l2_patch_add_del)                                   \
-_(SR_LOCALSID_ADD_DEL, sr_localsid_add_del)                             \
-_(SR_STEERING_ADD_DEL, sr_steering_add_del)                             \
-_(SR_POLICY_ADD, sr_policy_add)                                         \
-_(SR_POLICY_MOD, sr_policy_mod)                                         \
-_(SR_POLICY_DEL, sr_policy_del)                                         \
-_(SW_INTERFACE_SET_L2_XCONNECT, sw_interface_set_l2_xconnect)           \
-_(L2FIB_ADD_DEL, l2fib_add_del)                                         \
-_(L2FIB_FLUSH_ALL, l2fib_flush_all)                                     \
-_(L2FIB_FLUSH_BD, l2fib_flush_bd)                                       \
-_(L2FIB_FLUSH_INT, l2fib_flush_int)                                     \
-_(L2_FLAGS, l2_flags)                                                   \
-_(BRIDGE_FLAGS, bridge_flags)                                           \
-_(CLASSIFY_ADD_DEL_TABLE, classify_add_del_table)			\
-_(CLASSIFY_ADD_DEL_SESSION, classify_add_del_session)			\
-_(SW_INTERFACE_SET_L2_BRIDGE, sw_interface_set_l2_bridge)		\
-_(BRIDGE_DOMAIN_ADD_DEL, bridge_domain_add_del)                         \
-_(BRIDGE_DOMAIN_DUMP, bridge_domain_dump)                               \
-_(BRIDGE_DOMAIN_SET_MAC_AGE, bridge_domain_set_mac_age)                 \
-_(CLASSIFY_SET_INTERFACE_IP_TABLE, classify_set_interface_ip_table)	\
-_(CLASSIFY_SET_INTERFACE_L2_TABLES, classify_set_interface_l2_tables)	\
-_(ADD_NODE_NEXT, add_node_next)						\
-_(VXLAN_ADD_DEL_TUNNEL, vxlan_add_del_tunnel)                           \
-_(VXLAN_TUNNEL_DUMP, vxlan_tunnel_dump)                                 \
-_(VXLAN_OFFLOAD_RX, vxlan_offload_rx)                                   \
-_(L2_FIB_CLEAR_TABLE, l2_fib_clear_table)                               \
-_(L2_INTERFACE_EFP_FILTER, l2_interface_efp_filter)                     \
-_(L2_INTERFACE_VLAN_TAG_REWRITE, l2_interface_vlan_tag_rewrite)         \
-_(CREATE_VHOST_USER_IF, create_vhost_user_if)				\
-_(MODIFY_VHOST_USER_IF, modify_vhost_user_if)				\
-_(CREATE_VHOST_USER_IF_V2, create_vhost_user_if_v2)			\
-_(MODIFY_VHOST_USER_IF_V2, modify_vhost_user_if_v2)     		\
-_(DELETE_VHOST_USER_IF, delete_vhost_user_if)				\
-_(SW_INTERFACE_DUMP, sw_interface_dump)					\
-_(CONTROL_PING, control_ping)						\
-_(WANT_INTERFACE_EVENTS, want_interface_events)				\
-_(CLI, cli)								\
-_(CLI_INBAND, cli_inband)						\
-_(MEMCLNT_CREATE, memclnt_create)					\
-_(SOCKCLNT_CREATE, sockclnt_create)					\
-_(SW_INTERFACE_VHOST_USER_DUMP, sw_interface_vhost_user_dump)           \
-_(SHOW_VERSION, show_version)                                           \
-_(L2_FIB_TABLE_DUMP, l2_fib_table_dump)                                 \
-_(VXLAN_GPE_ADD_DEL_TUNNEL, vxlan_gpe_add_del_tunnel) 			\
-_(VXLAN_GPE_TUNNEL_DUMP, vxlan_gpe_tunnel_dump)                         \
-_(VXLAN_GBP_TUNNEL_ADD_DEL, vxlan_gbp_tunnel_add_del) 			\
-_(VXLAN_GBP_TUNNEL_DUMP, vxlan_gbp_tunnel_dump)                         \
-_(SW_INTERFACE_SET_VXLAN_GBP_BYPASS, sw_interface_set_vxlan_gbp_bypass) \
-_(INTERFACE_NAME_RENUMBER, interface_name_renumber)			\
-_(WANT_L2_MACS_EVENTS, want_l2_macs_events)                             \
-_(INPUT_ACL_SET_INTERFACE, input_acl_set_interface)                     \
-_(IP_ADDRESS_DUMP, ip_address_dump)                                     \
-_(IP_DUMP, ip_dump)                                                     \
-_(DELETE_LOOPBACK, delete_loopback)                                     \
-_(BD_IP_MAC_ADD_DEL, bd_ip_mac_add_del)					\
-_(BD_IP_MAC_FLUSH, bd_ip_mac_flush)					\
-_(AF_PACKET_CREATE, af_packet_create)					\
-_(AF_PACKET_DELETE, af_packet_delete)					\
-_(AF_PACKET_DUMP, af_packet_dump)                                       \
-_(SW_INTERFACE_CLEAR_STATS, sw_interface_clear_stats)                   \
-_(MPLS_TABLE_DUMP, mpls_table_dump)                                     \
-_(MPLS_ROUTE_DUMP, mpls_route_dump)                                     \
-_(MPLS_TUNNEL_DUMP, mpls_tunnel_dump)                                   \
-_(CLASSIFY_TABLE_IDS,classify_table_ids)                                \
-_(CLASSIFY_TABLE_BY_INTERFACE, classify_table_by_interface)             \
-_(CLASSIFY_TABLE_INFO,classify_table_info)                              \
-_(CLASSIFY_SESSION_DUMP,classify_session_dump)                          \
-_(SET_IPFIX_EXPORTER, set_ipfix_exporter)                               \
-_(IPFIX_EXPORTER_DUMP, ipfix_exporter_dump)                             \
-_(SET_IPFIX_CLASSIFY_STREAM, set_ipfix_classify_stream)                 \
-_(IPFIX_CLASSIFY_STREAM_DUMP, ipfix_classify_stream_dump)               \
-_(IPFIX_CLASSIFY_TABLE_ADD_DEL, ipfix_classify_table_add_del)           \
-_(IPFIX_CLASSIFY_TABLE_DUMP, ipfix_classify_table_dump)                 \
-_(SW_INTERFACE_SPAN_ENABLE_DISABLE, sw_interface_span_enable_disable)   \
-_(SW_INTERFACE_SPAN_DUMP, sw_interface_span_dump)                       \
-_(GET_NEXT_INDEX, get_next_index)                                       \
-_(PG_CREATE_INTERFACE,pg_create_interface)                              \
-_(PG_CAPTURE, pg_capture)                                               \
-_(PG_ENABLE_DISABLE, pg_enable_disable)                                 \
-_(PG_INTERFACE_ENABLE_DISABLE_COALESCE, pg_interface_enable_disable_coalesce) \
-_(POLICER_ADD_DEL, policer_add_del)                                     \
-_(POLICER_DUMP, policer_dump)                                           \
-_(POLICER_CLASSIFY_SET_INTERFACE, policer_classify_set_interface)       \
-_(POLICER_CLASSIFY_DUMP, policer_classify_dump)                         \
-_(IP_SOURCE_AND_PORT_RANGE_CHECK_ADD_DEL,                               \
-  ip_source_and_port_range_check_add_del)                               \
-_(IP_SOURCE_AND_PORT_RANGE_CHECK_INTERFACE_ADD_DEL,                     \
-  ip_source_and_port_range_check_interface_add_del)                     \
-_(IPSEC_INTERFACE_ADD_DEL_SPD, ipsec_interface_add_del_spd)		\
-_(IPSEC_SAD_ENTRY_ADD_DEL, ipsec_sad_entry_add_del)			\
-_(IPSEC_SPD_ADD_DEL, ipsec_spd_add_del)					\
-_(IPSEC_SPD_ENTRY_ADD_DEL, ipsec_spd_entry_add_del)			\
-_(DELETE_SUBIF, delete_subif)                                           \
-_(L2_INTERFACE_PBB_TAG_REWRITE, l2_interface_pbb_tag_rewrite)           \
-_(SET_PUNT, set_punt)                                                   \
-_(FLOW_CLASSIFY_SET_INTERFACE, flow_classify_set_interface)             \
-_(FLOW_CLASSIFY_DUMP, flow_classify_dump)				\
-_(GET_FIRST_MSG_ID, get_first_msg_id)                                   \
-_(IOAM_ENABLE, ioam_enable)                                             \
-_(IOAM_DISABLE, ioam_disable)                                           \
-_(FEATURE_ENABLE_DISABLE, feature_enable_disable)			\
-_(FEATURE_GSO_ENABLE_DISABLE, feature_gso_enable_disable)		\
-_(SW_INTERFACE_TAG_ADD_DEL, sw_interface_tag_add_del)			\
-_(HW_INTERFACE_SET_MTU, hw_interface_set_mtu)                           \
-_(P2P_ETHERNET_ADD, p2p_ethernet_add)                                   \
-_(P2P_ETHERNET_DEL, p2p_ethernet_del)					\
-_(TCP_CONFIGURE_SRC_ADDRESSES, tcp_configure_src_addresses)		\
-_(APP_NAMESPACE_ADD_DEL, app_namespace_add_del)                         \
-_(SESSION_RULE_ADD_DEL, session_rule_add_del)                           \
-_(OUTPUT_ACL_SET_INTERFACE, output_acl_set_interface)                   \
-_(QOS_RECORD_ENABLE_DISABLE, qos_record_enable_disable)			\
-_(MEMCLNT_KEEPALIVE_REPLY, memclnt_keepalive_reply)
+#define foreach_custom_print_function                                         \
+  _ (CREATE_LOOPBACK, create_loopback)                                        \
+  _ (CREATE_LOOPBACK_INSTANCE, create_loopback_instance)                      \
+  _ (SW_INTERFACE_SET_FLAGS, sw_interface_set_flags)                          \
+  _ (SW_INTERFACE_EVENT, sw_interface_event)                                  \
+  _ (SW_INTERFACE_ADD_DEL_ADDRESS, sw_interface_add_del_address)              \
+  _ (SW_INTERFACE_SET_TABLE, sw_interface_set_table)                          \
+  _ (SW_INTERFACE_SET_MPLS_ENABLE, sw_interface_set_mpls_enable)              \
+  _ (SW_INTERFACE_SET_VPATH, sw_interface_set_vpath)                          \
+  _ (SW_INTERFACE_SET_VXLAN_BYPASS, sw_interface_set_vxlan_bypass)            \
+  _ (BOND_CREATE, bond_create)                                                \
+  _ (BOND_CREATE2, bond_create2)                                              \
+  _ (BOND_DELETE, bond_delete)                                                \
+  _ (BOND_ADD_MEMBER, bond_add_member)                                        \
+  _ (BOND_DETACH_MEMBER, bond_detach_member)                                  \
+  _ (SW_INTERFACE_SET_BOND_WEIGHT, sw_interface_set_bond_weight)              \
+  _ (SW_MEMBER_INTERFACE_DUMP, sw_member_interface_dump)                      \
+  _ (SW_BOND_INTERFACE_DUMP, sw_bond_interface_dump)                          \
+  _ (SW_INTERFACE_RX_PLACEMENT_DUMP, sw_interface_rx_placement_dump)          \
+  _ (TAP_CREATE_V2, tap_create_v2)                                            \
+  _ (TAP_DELETE_V2, tap_delete_v2)                                            \
+  _ (SW_INTERFACE_TAP_V2_DUMP, sw_interface_tap_v2_dump)                      \
+  _ (IP_TABLE_ADD_DEL, ip_table_add_del)                                      \
+  _ (MPLS_ROUTE_ADD_DEL, mpls_route_add_del)                                  \
+  _ (MPLS_TABLE_ADD_DEL, mpls_table_add_del)                                  \
+  _ (IP_ROUTE_ADD_DEL, ip_route_add_del)                                      \
+  _ (MPLS_TUNNEL_ADD_DEL, mpls_tunnel_add_del)                                \
+  _ (SR_MPLS_POLICY_ADD, sr_mpls_policy_add)                                  \
+  _ (SR_MPLS_POLICY_DEL, sr_mpls_policy_del)                                  \
+  _ (SW_INTERFACE_SET_UNNUMBERED, sw_interface_set_unnumbered)                \
+  _ (CREATE_VLAN_SUBIF, create_vlan_subif)                                    \
+  _ (CREATE_SUBIF, create_subif)                                              \
+  _ (IP_TABLE_REPLACE_BEGIN, ip_table_replace_begin)                          \
+  _ (IP_TABLE_FLUSH, ip_table_flush)                                          \
+  _ (IP_TABLE_REPLACE_END, ip_table_replace_end)                              \
+  _ (SET_IP_FLOW_HASH, set_ip_flow_hash)                                      \
+  _ (L2_PATCH_ADD_DEL, l2_patch_add_del)                                      \
+  _ (SR_LOCALSID_ADD_DEL, sr_localsid_add_del)                                \
+  _ (SR_STEERING_ADD_DEL, sr_steering_add_del)                                \
+  _ (SR_POLICY_ADD, sr_policy_add)                                            \
+  _ (SR_POLICY_ADD_V2, sr_policy_add_v2)                                      \
+  _ (PT_IFACE_ADD, pt_iface_add)                                              \
+  _ (PT_IFACE_DEL, pt_iface_del)                                              \
+  _ (PT_PROBE_INJECT_IFACE_ADD, pt_probe_inject_iface_add)                    \
+  _ (PT_PROBE_INJECT_IFACE_DEL, pt_probe_inject_iface_del)                    \
+  _ (SR_POLICY_MOD, sr_policy_mod)                                            \
+  _ (SR_POLICY_DEL, sr_policy_del)                                            \
+  _ (SW_INTERFACE_SET_L2_XCONNECT, sw_interface_set_l2_xconnect)              \
+  _ (L2FIB_ADD_DEL, l2fib_add_del)                                            \
+  _ (L2FIB_FLUSH_ALL, l2fib_flush_all)                                        \
+  _ (L2FIB_FLUSH_BD, l2fib_flush_bd)                                          \
+  _ (L2FIB_FLUSH_INT, l2fib_flush_int)                                        \
+  _ (L2_FLAGS, l2_flags)                                                      \
+  _ (BRIDGE_FLAGS, bridge_flags)                                              \
+  _ (CLASSIFY_ADD_DEL_TABLE, classify_add_del_table)                          \
+  _ (CLASSIFY_ADD_DEL_SESSION, classify_add_del_session)                      \
+  _ (SW_INTERFACE_SET_L2_BRIDGE, sw_interface_set_l2_bridge)                  \
+  _ (BRIDGE_DOMAIN_ADD_DEL, bridge_domain_add_del)                            \
+  _ (BRIDGE_DOMAIN_DUMP, bridge_domain_dump)                                  \
+  _ (BRIDGE_DOMAIN_SET_MAC_AGE, bridge_domain_set_mac_age)                    \
+  _ (CLASSIFY_SET_INTERFACE_IP_TABLE, classify_set_interface_ip_table)        \
+  _ (CLASSIFY_SET_INTERFACE_L2_TABLES, classify_set_interface_l2_tables)      \
+  _ (ADD_NODE_NEXT, add_node_next)                                            \
+  _ (VXLAN_ADD_DEL_TUNNEL, vxlan_add_del_tunnel)                              \
+  _ (VXLAN_TUNNEL_DUMP, vxlan_tunnel_dump)                                    \
+  _ (VXLAN_OFFLOAD_RX, vxlan_offload_rx)                                      \
+  _ (L2_FIB_CLEAR_TABLE, l2_fib_clear_table)                                  \
+  _ (L2_INTERFACE_EFP_FILTER, l2_interface_efp_filter)                        \
+  _ (L2_INTERFACE_VLAN_TAG_REWRITE, l2_interface_vlan_tag_rewrite)            \
+  _ (CREATE_VHOST_USER_IF, create_vhost_user_if)                              \
+  _ (MODIFY_VHOST_USER_IF, modify_vhost_user_if)                              \
+  _ (CREATE_VHOST_USER_IF_V2, create_vhost_user_if_v2)                        \
+  _ (MODIFY_VHOST_USER_IF_V2, modify_vhost_user_if_v2)                        \
+  _ (DELETE_VHOST_USER_IF, delete_vhost_user_if)                              \
+  _ (SW_INTERFACE_DUMP, sw_interface_dump)                                    \
+  _ (CONTROL_PING, control_ping)                                              \
+  _ (WANT_INTERFACE_EVENTS, want_interface_events)                            \
+  _ (CLI, cli)                                                                \
+  _ (CLI_INBAND, cli_inband)                                                  \
+  _ (MEMCLNT_CREATE, memclnt_create)                                          \
+  _ (SOCKCLNT_CREATE, sockclnt_create)                                        \
+  _ (SW_INTERFACE_VHOST_USER_DUMP, sw_interface_vhost_user_dump)              \
+  _ (SHOW_VERSION, show_version)                                              \
+  _ (L2_FIB_TABLE_DUMP, l2_fib_table_dump)                                    \
+  _ (VXLAN_GPE_ADD_DEL_TUNNEL, vxlan_gpe_add_del_tunnel)                      \
+  _ (VXLAN_GPE_TUNNEL_DUMP, vxlan_gpe_tunnel_dump)                            \
+  _ (VXLAN_GBP_TUNNEL_ADD_DEL, vxlan_gbp_tunnel_add_del)                      \
+  _ (VXLAN_GBP_TUNNEL_DUMP, vxlan_gbp_tunnel_dump)                            \
+  _ (SW_INTERFACE_SET_VXLAN_GBP_BYPASS, sw_interface_set_vxlan_gbp_bypass)    \
+  _ (INTERFACE_NAME_RENUMBER, interface_name_renumber)                        \
+  _ (WANT_L2_MACS_EVENTS, want_l2_macs_events)                                \
+  _ (INPUT_ACL_SET_INTERFACE, input_acl_set_interface)                        \
+  _ (IP_ADDRESS_DUMP, ip_address_dump)                                        \
+  _ (IP_DUMP, ip_dump)                                                        \
+  _ (DELETE_LOOPBACK, delete_loopback)                                        \
+  _ (BD_IP_MAC_ADD_DEL, bd_ip_mac_add_del)                                    \
+  _ (BD_IP_MAC_FLUSH, bd_ip_mac_flush)                                        \
+  _ (AF_PACKET_CREATE, af_packet_create)                                      \
+  _ (AF_PACKET_DELETE, af_packet_delete)                                      \
+  _ (AF_PACKET_DUMP, af_packet_dump)                                          \
+  _ (SW_INTERFACE_CLEAR_STATS, sw_interface_clear_stats)                      \
+  _ (MPLS_TABLE_DUMP, mpls_table_dump)                                        \
+  _ (MPLS_ROUTE_DUMP, mpls_route_dump)                                        \
+  _ (MPLS_TUNNEL_DUMP, mpls_tunnel_dump)                                      \
+  _ (CLASSIFY_TABLE_IDS, classify_table_ids)                                  \
+  _ (CLASSIFY_TABLE_BY_INTERFACE, classify_table_by_interface)                \
+  _ (CLASSIFY_TABLE_INFO, classify_table_info)                                \
+  _ (CLASSIFY_SESSION_DUMP, classify_session_dump)                            \
+  _ (SET_IPFIX_EXPORTER, set_ipfix_exporter)                                  \
+  _ (IPFIX_EXPORTER_DUMP, ipfix_exporter_dump)                                \
+  _ (SET_IPFIX_CLASSIFY_STREAM, set_ipfix_classify_stream)                    \
+  _ (IPFIX_CLASSIFY_STREAM_DUMP, ipfix_classify_stream_dump)                  \
+  _ (IPFIX_CLASSIFY_TABLE_ADD_DEL, ipfix_classify_table_add_del)              \
+  _ (IPFIX_CLASSIFY_TABLE_DUMP, ipfix_classify_table_dump)                    \
+  _ (SW_INTERFACE_SPAN_ENABLE_DISABLE, sw_interface_span_enable_disable)      \
+  _ (SW_INTERFACE_SPAN_DUMP, sw_interface_span_dump)                          \
+  _ (GET_NEXT_INDEX, get_next_index)                                          \
+  _ (PG_CREATE_INTERFACE, pg_create_interface)                                \
+  _ (PG_CAPTURE, pg_capture)                                                  \
+  _ (PG_ENABLE_DISABLE, pg_enable_disable)                                    \
+  _ (PG_INTERFACE_ENABLE_DISABLE_COALESCE,                                    \
+     pg_interface_enable_disable_coalesce)                                    \
+  _ (POLICER_ADD_DEL, policer_add_del)                                        \
+  _ (POLICER_DUMP, policer_dump)                                              \
+  _ (POLICER_CLASSIFY_SET_INTERFACE, policer_classify_set_interface)          \
+  _ (POLICER_CLASSIFY_DUMP, policer_classify_dump)                            \
+  _ (IP_SOURCE_AND_PORT_RANGE_CHECK_ADD_DEL,                                  \
+     ip_source_and_port_range_check_add_del)                                  \
+  _ (IP_SOURCE_AND_PORT_RANGE_CHECK_INTERFACE_ADD_DEL,                        \
+     ip_source_and_port_range_check_interface_add_del)                        \
+  _ (IPSEC_INTERFACE_ADD_DEL_SPD, ipsec_interface_add_del_spd)                \
+  _ (IPSEC_SAD_ENTRY_ADD_DEL, ipsec_sad_entry_add_del)                        \
+  _ (IPSEC_SPD_ADD_DEL, ipsec_spd_add_del)                                    \
+  _ (IPSEC_SPD_ENTRY_ADD_DEL, ipsec_spd_entry_add_del)                        \
+  _ (DELETE_SUBIF, delete_subif)                                              \
+  _ (L2_INTERFACE_PBB_TAG_REWRITE, l2_interface_pbb_tag_rewrite)              \
+  _ (SET_PUNT, set_punt)                                                      \
+  _ (FLOW_CLASSIFY_SET_INTERFACE, flow_classify_set_interface)                \
+  _ (FLOW_CLASSIFY_DUMP, flow_classify_dump)                                  \
+  _ (GET_FIRST_MSG_ID, get_first_msg_id)                                      \
+  _ (IOAM_ENABLE, ioam_enable)                                                \
+  _ (IOAM_DISABLE, ioam_disable)                                              \
+  _ (FEATURE_ENABLE_DISABLE, feature_enable_disable)                          \
+  _ (FEATURE_GSO_ENABLE_DISABLE, feature_gso_enable_disable)                  \
+  _ (SW_INTERFACE_TAG_ADD_DEL, sw_interface_tag_add_del)                      \
+  _ (HW_INTERFACE_SET_MTU, hw_interface_set_mtu)                              \
+  _ (P2P_ETHERNET_ADD, p2p_ethernet_add)                                      \
+  _ (P2P_ETHERNET_DEL, p2p_ethernet_del)                                      \
+  _ (TCP_CONFIGURE_SRC_ADDRESSES, tcp_configure_src_addresses)                \
+  _ (APP_NAMESPACE_ADD_DEL, app_namespace_add_del)                            \
+  _ (SESSION_RULE_ADD_DEL, session_rule_add_del)                              \
+  _ (OUTPUT_ACL_SET_INTERFACE, output_acl_set_interface)                      \
+  _ (QOS_RECORD_ENABLE_DISABLE, qos_record_enable_disable)                    \
+  _ (MEMCLNT_KEEPALIVE_REPLY, memclnt_keepalive_reply)
 
 void
 vl_msg_api_custom_dump_configure (api_main_t * am)

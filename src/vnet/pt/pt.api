@@ -1,0 +1,85 @@
+/* Hey Emacs use -*- mode: C -*- */
+/*
+ * Copyright (c) 2015-2016 Cisco and/or its affiliates.
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at:
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+option version = "2.0.0";
+
+import "vnet/interface_types.api";
+import "vnet/ip/ip_types.api";
+
+/** \brief pt iface add  
+    @param client_index - opaque cookie to identify the sender
+    @param context - sender context, to match reply w/ request
+    @param sw_if_index is the PT iface
+    @param id is the id value of the PT iface
+    @param ingress_load is the ingress load value of the PT iface
+    @param egress_load is the egress load value of the PT iface
+    @param tts_template is the Truncated Timestamp template of the PT iface 
+*/
+autoreply define pt_iface_add
+{
+  u32 client_index;
+  u32 context;
+  vl_api_interface_index_t sw_if_index [default=0xffffffff];
+  u16 id;
+  u8 ingress_load;
+  u8 egress_load;
+  u8 tts_template[default=2];
+};
+
+/** \brief pt iface del
+    @param client_index - opaque cookie to identify the sender
+    @param context - sender context, to match reply w/ request
+    @param sw_if_index is the PT iface
+*/
+autoreply define pt_iface_del
+{
+  u32 client_index;
+  u32 context;
+  vl_api_interface_index_t sw_if_index [default=0xffffffff];
+};
+
+/** \brief pt probe-inject iface add 
+    @param client_index - opaque cookie to identify the sender
+    @param context - sender context, to match reply w/ request
+    @param sw_if_index is the PT probe-inject iface
+*/
+autoreply define pt_probe_inject_iface_add
+{
+  u32 client_index;
+  u32 context;
+  vl_api_interface_index_t sw_if_index [default=0xffffffff];
+};
+
+
+/** \brief pt probe-inject iface del
+    @param client_index - opaque cookie to identify the sender
+    @param context - sender context, to match reply w/ request
+    @param sw_if_index is the PT probe-inject iface
+*/
+autoreply define pt_probe_inject_iface_del
+{
+  u32 client_index;
+  u32 context;
+  vl_api_interface_index_t sw_if_index [default=0xffffffff];
+};
+
+/*
+ * fd.io coding-style-patch-verification: OFF
+ * Local Variables:
+ * eval: (c-set-style "gnu")
+ * End:
+ */
+

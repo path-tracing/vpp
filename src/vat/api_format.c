@@ -54,6 +54,7 @@
 #include "vat/json_format.h"
 #include <vnet/ip/ip_types_api.h>
 #include <vnet/ethernet/ethernet_types_api.h>
+#include <vnet/pt/pt.h>
 
 #include <inttypes.h>
 #include <sys/stat.h>
@@ -3235,96 +3236,101 @@ static void vl_api_flow_classify_details_t_handler_json
  * a single function, but that could break in subtle ways.
  */
 
-#define foreach_standard_reply_retval_handler           \
-_(sw_interface_set_flags_reply)                         \
-_(sw_interface_add_del_address_reply)                   \
-_(sw_interface_set_rx_mode_reply)                       \
-_(sw_interface_set_rx_placement_reply)                  \
-_(sw_interface_set_table_reply)                         \
-_(sw_interface_set_mpls_enable_reply)                   \
-_(sw_interface_set_vpath_reply)                         \
-_(sw_interface_set_vxlan_bypass_reply)                  \
-_(sw_interface_set_vxlan_gpe_bypass_reply)              \
-_(sw_interface_set_l2_bridge_reply)                     \
-_(sw_interface_set_bond_weight_reply)                   \
-_(bridge_domain_add_del_reply)                          \
-_(sw_interface_set_l2_xconnect_reply)                   \
-_(l2fib_add_del_reply)                                  \
-_(l2fib_flush_int_reply)                                \
-_(l2fib_flush_bd_reply)                                 \
-_(ip_route_add_del_reply)                               \
-_(ip_table_add_del_reply)                               \
-_(ip_table_replace_begin_reply)                         \
-_(ip_table_flush_reply)                                 \
-_(ip_table_replace_end_reply)                           \
-_(ip_mroute_add_del_reply)                              \
-_(mpls_route_add_del_reply)                             \
-_(mpls_table_add_del_reply)                             \
-_(mpls_ip_bind_unbind_reply)                            \
-_(bier_route_add_del_reply)                             \
-_(bier_table_add_del_reply)                             \
-_(sw_interface_set_unnumbered_reply)                    \
-_(set_ip_flow_hash_reply)                               \
-_(sw_interface_ip6_enable_disable_reply)                \
-_(l2_patch_add_del_reply)                               \
-_(sr_mpls_policy_add_reply)                             \
-_(sr_mpls_policy_mod_reply)                             \
-_(sr_mpls_policy_del_reply)                             \
-_(sr_policy_add_reply)                                  \
-_(sr_policy_mod_reply)                                  \
-_(sr_policy_del_reply)                                  \
-_(sr_localsid_add_del_reply)                            \
-_(sr_steering_add_del_reply)                            \
-_(classify_add_del_session_reply)                       \
-_(classify_set_interface_ip_table_reply)                \
-_(classify_set_interface_l2_tables_reply)               \
-_(l2_fib_clear_table_reply)                             \
-_(l2_interface_efp_filter_reply)                        \
-_(l2_interface_vlan_tag_rewrite_reply)                  \
-_(modify_vhost_user_if_reply)                           \
-_(modify_vhost_user_if_v2_reply)                        \
-_(delete_vhost_user_if_reply)                           \
-_(want_l2_macs_events_reply)                            \
-_(input_acl_set_interface_reply)                        \
-_(ipsec_spd_add_del_reply)                              \
-_(ipsec_interface_add_del_spd_reply)                    \
-_(ipsec_spd_entry_add_del_reply)                        \
-_(ipsec_sad_entry_add_del_reply)                        \
-_(delete_loopback_reply)                                \
-_(bd_ip_mac_add_del_reply)                              \
-_(bd_ip_mac_flush_reply)                                \
-_(want_interface_events_reply)                          \
-_(sw_interface_clear_stats_reply)                       \
-_(ioam_enable_reply)                                    \
-_(ioam_disable_reply)                                   \
-_(af_packet_delete_reply)                               \
-_(policer_classify_set_interface_reply)                 \
-_(set_ipfix_exporter_reply)                             \
-_(set_ipfix_classify_stream_reply)                      \
-_(ipfix_classify_table_add_del_reply)                   \
-_(flow_classify_set_interface_reply)                    \
-_(sw_interface_span_enable_disable_reply)               \
-_(pg_capture_reply)                                     \
-_(pg_enable_disable_reply)                              \
-_(pg_interface_enable_disable_coalesce_reply)           \
-_(ip_source_and_port_range_check_add_del_reply)         \
-_(ip_source_and_port_range_check_interface_add_del_reply)\
-_(delete_subif_reply)                                   \
-_(l2_interface_pbb_tag_rewrite_reply)                   \
-_(set_punt_reply)                                       \
-_(feature_enable_disable_reply)				\
-_(feature_gso_enable_disable_reply)	                \
-_(sw_interface_tag_add_del_reply)			\
-_(sw_interface_add_del_mac_address_reply)		\
-_(hw_interface_set_mtu_reply)                           \
-_(p2p_ethernet_add_reply)                               \
-_(p2p_ethernet_del_reply)                               \
-_(tcp_configure_src_addresses_reply)			\
-_(session_rule_add_del_reply)				\
-_(ip_container_proxy_add_del_reply)                     \
-_(output_acl_set_interface_reply)                       \
-_(qos_record_enable_disable_reply)			\
-_(flow_add_reply)
+#define foreach_standard_reply_retval_handler                                 \
+  _ (sw_interface_set_flags_reply)                                            \
+  _ (sw_interface_add_del_address_reply)                                      \
+  _ (sw_interface_set_rx_mode_reply)                                          \
+  _ (sw_interface_set_rx_placement_reply)                                     \
+  _ (sw_interface_set_table_reply)                                            \
+  _ (sw_interface_set_mpls_enable_reply)                                      \
+  _ (sw_interface_set_vpath_reply)                                            \
+  _ (sw_interface_set_vxlan_bypass_reply)                                     \
+  _ (sw_interface_set_vxlan_gpe_bypass_reply)                                 \
+  _ (sw_interface_set_l2_bridge_reply)                                        \
+  _ (sw_interface_set_bond_weight_reply)                                      \
+  _ (bridge_domain_add_del_reply)                                             \
+  _ (sw_interface_set_l2_xconnect_reply)                                      \
+  _ (l2fib_add_del_reply)                                                     \
+  _ (l2fib_flush_int_reply)                                                   \
+  _ (l2fib_flush_bd_reply)                                                    \
+  _ (ip_route_add_del_reply)                                                  \
+  _ (ip_table_add_del_reply)                                                  \
+  _ (ip_table_replace_begin_reply)                                            \
+  _ (ip_table_flush_reply)                                                    \
+  _ (ip_table_replace_end_reply)                                              \
+  _ (ip_mroute_add_del_reply)                                                 \
+  _ (mpls_route_add_del_reply)                                                \
+  _ (mpls_table_add_del_reply)                                                \
+  _ (mpls_ip_bind_unbind_reply)                                               \
+  _ (bier_route_add_del_reply)                                                \
+  _ (bier_table_add_del_reply)                                                \
+  _ (sw_interface_set_unnumbered_reply)                                       \
+  _ (set_ip_flow_hash_reply)                                                  \
+  _ (sw_interface_ip6_enable_disable_reply)                                   \
+  _ (l2_patch_add_del_reply)                                                  \
+  _ (sr_mpls_policy_add_reply)                                                \
+  _ (sr_mpls_policy_mod_reply)                                                \
+  _ (sr_mpls_policy_del_reply)                                                \
+  _ (sr_policy_add_reply)                                                     \
+  _ (sr_policy_add_v2_reply)                                                  \
+  _ (pt_iface_add_reply)                                                      \
+  _ (pt_iface_del_reply)                                                      \
+  _ (pt_probe_inject_iface_add_reply)                                         \
+  _ (pt_probe_inject_iface_del_reply)                                        \
+  _ (sr_policy_mod_reply)                                                     \
+  _ (sr_policy_del_reply)                                                     \
+  _ (sr_localsid_add_del_reply)                                               \
+  _ (sr_steering_add_del_reply)                                               \
+  _ (classify_add_del_session_reply)                                          \
+  _ (classify_set_interface_ip_table_reply)                                   \
+  _ (classify_set_interface_l2_tables_reply)                                  \
+  _ (l2_fib_clear_table_reply)                                                \
+  _ (l2_interface_efp_filter_reply)                                           \
+  _ (l2_interface_vlan_tag_rewrite_reply)                                     \
+  _ (modify_vhost_user_if_reply)                                              \
+  _ (modify_vhost_user_if_v2_reply)                                           \
+  _ (delete_vhost_user_if_reply)                                              \
+  _ (want_l2_macs_events_reply)                                               \
+  _ (input_acl_set_interface_reply)                                           \
+  _ (ipsec_spd_add_del_reply)                                                 \
+  _ (ipsec_interface_add_del_spd_reply)                                       \
+  _ (ipsec_spd_entry_add_del_reply)                                           \
+  _ (ipsec_sad_entry_add_del_reply)                                           \
+  _ (delete_loopback_reply)                                                   \
+  _ (bd_ip_mac_add_del_reply)                                                 \
+  _ (bd_ip_mac_flush_reply)                                                   \
+  _ (want_interface_events_reply)                                             \
+  _ (sw_interface_clear_stats_reply)                                          \
+  _ (ioam_enable_reply)                                                       \
+  _ (ioam_disable_reply)                                                      \
+  _ (af_packet_delete_reply)                                                  \
+  _ (policer_classify_set_interface_reply)                                    \
+  _ (set_ipfix_exporter_reply)                                                \
+  _ (set_ipfix_classify_stream_reply)                                         \
+  _ (ipfix_classify_table_add_del_reply)                                      \
+  _ (flow_classify_set_interface_reply)                                       \
+  _ (sw_interface_span_enable_disable_reply)                                  \
+  _ (pg_capture_reply)                                                        \
+  _ (pg_enable_disable_reply)                                                 \
+  _ (pg_interface_enable_disable_coalesce_reply)                              \
+  _ (ip_source_and_port_range_check_add_del_reply)                            \
+  _ (ip_source_and_port_range_check_interface_add_del_reply)                  \
+  _ (delete_subif_reply)                                                      \
+  _ (l2_interface_pbb_tag_rewrite_reply)                                      \
+  _ (set_punt_reply)                                                          \
+  _ (feature_enable_disable_reply)                                            \
+  _ (feature_gso_enable_disable_reply)                                        \
+  _ (sw_interface_tag_add_del_reply)                                          \
+  _ (sw_interface_add_del_mac_address_reply)                                  \
+  _ (hw_interface_set_mtu_reply)                                              \
+  _ (p2p_ethernet_add_reply)                                                  \
+  _ (p2p_ethernet_del_reply)                                                  \
+  _ (tcp_configure_src_addresses_reply)                                       \
+  _ (session_rule_add_del_reply)                                              \
+  _ (ip_container_proxy_add_del_reply)                                        \
+  _ (output_acl_set_interface_reply)                                          \
+  _ (qos_record_enable_disable_reply)                                         \
+  _ (flow_add_reply)
 
 #define _(n)                                    \
     static void vl_api_##n##_t_handler          \
@@ -3362,180 +3368,189 @@ foreach_standard_reply_retval_handler;
  * we just generated
  */
 
-#define foreach_vpe_api_reply_msg                                       \
-_(CREATE_LOOPBACK_REPLY, create_loopback_reply)                         \
-_(CREATE_LOOPBACK_INSTANCE_REPLY, create_loopback_instance_reply)       \
-_(SW_INTERFACE_DETAILS, sw_interface_details)                           \
-_(SW_INTERFACE_SET_FLAGS_REPLY, sw_interface_set_flags_reply)           \
-_(CONTROL_PING_REPLY, control_ping_reply)                               \
-_(CLI_REPLY, cli_reply)                                                 \
-_(CLI_INBAND_REPLY, cli_inband_reply)                                   \
-_(SW_INTERFACE_ADD_DEL_ADDRESS_REPLY,                                   \
-  sw_interface_add_del_address_reply)                                   \
-_(SW_INTERFACE_SET_RX_MODE_REPLY, sw_interface_set_rx_mode_reply)       \
-_(SW_INTERFACE_SET_RX_PLACEMENT_REPLY, sw_interface_set_rx_placement_reply)	\
-_(SW_INTERFACE_RX_PLACEMENT_DETAILS, sw_interface_rx_placement_details)	\
-_(SW_INTERFACE_SET_TABLE_REPLY, sw_interface_set_table_reply) 		\
-_(SW_INTERFACE_SET_MPLS_ENABLE_REPLY, sw_interface_set_mpls_enable_reply) \
-_(SW_INTERFACE_SET_VPATH_REPLY, sw_interface_set_vpath_reply) 		\
-_(SW_INTERFACE_SET_VXLAN_BYPASS_REPLY, sw_interface_set_vxlan_bypass_reply) \
-_(SW_INTERFACE_SET_VXLAN_GPE_BYPASS_REPLY, sw_interface_set_vxlan_gpe_bypass_reply) \
-_(SW_INTERFACE_SET_L2_XCONNECT_REPLY,                                   \
-  sw_interface_set_l2_xconnect_reply)                                   \
-_(SW_INTERFACE_SET_L2_BRIDGE_REPLY,                                     \
-  sw_interface_set_l2_bridge_reply)                                     \
-_(BRIDGE_DOMAIN_ADD_DEL_REPLY, bridge_domain_add_del_reply)             \
-_(BRIDGE_DOMAIN_DETAILS, bridge_domain_details)                         \
-_(BRIDGE_DOMAIN_SET_MAC_AGE_REPLY, bridge_domain_set_mac_age_reply)     \
-_(L2FIB_ADD_DEL_REPLY, l2fib_add_del_reply)                             \
-_(L2FIB_FLUSH_INT_REPLY, l2fib_flush_int_reply)                         \
-_(L2FIB_FLUSH_BD_REPLY, l2fib_flush_bd_reply)                           \
-_(L2_FLAGS_REPLY, l2_flags_reply)                                       \
-_(BRIDGE_FLAGS_REPLY, bridge_flags_reply)                               \
-_(TAP_CREATE_V2_REPLY, tap_create_v2_reply)				\
-_(TAP_DELETE_V2_REPLY, tap_delete_v2_reply)				\
-_(SW_INTERFACE_TAP_V2_DETAILS, sw_interface_tap_v2_details)             \
-_(VIRTIO_PCI_CREATE_REPLY, virtio_pci_create_reply)			\
-_(VIRTIO_PCI_CREATE_V2_REPLY, virtio_pci_create_v2_reply)		\
-_(VIRTIO_PCI_DELETE_REPLY, virtio_pci_delete_reply)			\
-_(SW_INTERFACE_VIRTIO_PCI_DETAILS, sw_interface_virtio_pci_details)     \
-_(BOND_CREATE_REPLY, bond_create_reply)	   			        \
-_(BOND_CREATE2_REPLY, bond_create2_reply)				\
-_(BOND_DELETE_REPLY, bond_delete_reply)			  	        \
-_(BOND_ADD_MEMBER_REPLY, bond_add_member_reply)				\
-_(BOND_DETACH_MEMBER_REPLY, bond_detach_member_reply)			\
-_(SW_INTERFACE_SET_BOND_WEIGHT_REPLY, sw_interface_set_bond_weight_reply) \
-_(SW_BOND_INTERFACE_DETAILS, sw_bond_interface_details)                 \
-_(SW_MEMBER_INTERFACE_DETAILS, sw_member_interface_details)               \
-_(IP_ROUTE_ADD_DEL_REPLY, ip_route_add_del_reply)			\
-_(IP_TABLE_ADD_DEL_REPLY, ip_table_add_del_reply)			\
-_(IP_TABLE_REPLACE_BEGIN_REPLY, ip_table_replace_begin_reply)           \
-_(IP_TABLE_FLUSH_REPLY, ip_table_flush_reply)                           \
-_(IP_TABLE_REPLACE_END_REPLY, ip_table_replace_end_reply)               \
-_(IP_MROUTE_ADD_DEL_REPLY, ip_mroute_add_del_reply)			\
-_(MPLS_TABLE_ADD_DEL_REPLY, mpls_table_add_del_reply)			\
-_(MPLS_ROUTE_ADD_DEL_REPLY, mpls_route_add_del_reply)			\
-_(MPLS_IP_BIND_UNBIND_REPLY, mpls_ip_bind_unbind_reply)			\
-_(BIER_ROUTE_ADD_DEL_REPLY, bier_route_add_del_reply)			\
-_(BIER_TABLE_ADD_DEL_REPLY, bier_table_add_del_reply)			\
-_(MPLS_TUNNEL_ADD_DEL_REPLY, mpls_tunnel_add_del_reply)                 \
-_(SW_INTERFACE_SET_UNNUMBERED_REPLY,                                    \
-  sw_interface_set_unnumbered_reply)                                    \
-_(CREATE_VLAN_SUBIF_REPLY, create_vlan_subif_reply)                     \
-_(CREATE_SUBIF_REPLY, create_subif_reply)                     		\
-_(SET_IP_FLOW_HASH_REPLY, set_ip_flow_hash_reply)                       \
-_(SW_INTERFACE_IP6_ENABLE_DISABLE_REPLY,                                \
-  sw_interface_ip6_enable_disable_reply)                                \
-_(L2_PATCH_ADD_DEL_REPLY, l2_patch_add_del_reply)                       \
-_(SR_MPLS_POLICY_ADD_REPLY, sr_mpls_policy_add_reply)                   \
-_(SR_MPLS_POLICY_MOD_REPLY, sr_mpls_policy_mod_reply)                   \
-_(SR_MPLS_POLICY_DEL_REPLY, sr_mpls_policy_del_reply)                   \
-_(SR_POLICY_ADD_REPLY, sr_policy_add_reply)                             \
-_(SR_POLICY_MOD_REPLY, sr_policy_mod_reply)                             \
-_(SR_POLICY_DEL_REPLY, sr_policy_del_reply)                             \
-_(SR_LOCALSID_ADD_DEL_REPLY, sr_localsid_add_del_reply)                 \
-_(SR_STEERING_ADD_DEL_REPLY, sr_steering_add_del_reply)                 \
-_(CLASSIFY_ADD_DEL_TABLE_REPLY, classify_add_del_table_reply)           \
-_(CLASSIFY_ADD_DEL_SESSION_REPLY, classify_add_del_session_reply)       \
-_(CLASSIFY_SET_INTERFACE_IP_TABLE_REPLY,                                \
-classify_set_interface_ip_table_reply)                                  \
-_(CLASSIFY_SET_INTERFACE_L2_TABLES_REPLY,                               \
-  classify_set_interface_l2_tables_reply)                               \
-_(GET_NODE_INDEX_REPLY, get_node_index_reply)                           \
-_(ADD_NODE_NEXT_REPLY, add_node_next_reply)                             \
-_(VXLAN_ADD_DEL_TUNNEL_REPLY, vxlan_add_del_tunnel_reply)               \
-_(VXLAN_OFFLOAD_RX_REPLY, vxlan_offload_rx_reply)               \
-_(VXLAN_TUNNEL_DETAILS, vxlan_tunnel_details)                           \
-_(L2_FIB_CLEAR_TABLE_REPLY, l2_fib_clear_table_reply)                   \
-_(L2_INTERFACE_EFP_FILTER_REPLY, l2_interface_efp_filter_reply)         \
-_(L2_INTERFACE_VLAN_TAG_REWRITE_REPLY, l2_interface_vlan_tag_rewrite_reply) \
-_(SW_INTERFACE_VHOST_USER_DETAILS, sw_interface_vhost_user_details)     \
-_(CREATE_VHOST_USER_IF_REPLY, create_vhost_user_if_reply)               \
-_(MODIFY_VHOST_USER_IF_REPLY, modify_vhost_user_if_reply)               \
-_(CREATE_VHOST_USER_IF_V2_REPLY, create_vhost_user_if_v2_reply)         \
-_(MODIFY_VHOST_USER_IF_V2_REPLY, modify_vhost_user_if_v2_reply)		\
-_(DELETE_VHOST_USER_IF_REPLY, delete_vhost_user_if_reply)               \
-_(SHOW_VERSION_REPLY, show_version_reply)                               \
-_(SHOW_THREADS_REPLY, show_threads_reply)                               \
-_(L2_FIB_TABLE_DETAILS, l2_fib_table_details)				\
-_(VXLAN_GPE_ADD_DEL_TUNNEL_REPLY, vxlan_gpe_add_del_tunnel_reply)	\
-_(VXLAN_GPE_TUNNEL_DETAILS, vxlan_gpe_tunnel_details)                   \
-_(INTERFACE_NAME_RENUMBER_REPLY, interface_name_renumber_reply)		\
-_(WANT_L2_MACS_EVENTS_REPLY, want_l2_macs_events_reply)			\
-_(L2_MACS_EVENT, l2_macs_event)						\
-_(INPUT_ACL_SET_INTERFACE_REPLY, input_acl_set_interface_reply)         \
-_(IP_ADDRESS_DETAILS, ip_address_details)                               \
-_(IP_DETAILS, ip_details)                                               \
-_(IPSEC_SPD_ADD_DEL_REPLY, ipsec_spd_add_del_reply)                     \
-_(IPSEC_INTERFACE_ADD_DEL_SPD_REPLY, ipsec_interface_add_del_spd_reply) \
-_(IPSEC_SPD_ENTRY_ADD_DEL_REPLY, ipsec_spd_entry_add_del_reply)         \
-_(IPSEC_SAD_ENTRY_ADD_DEL_REPLY, ipsec_sad_entry_add_del_reply)         \
-_(IPSEC_SA_DETAILS, ipsec_sa_details)                                   \
-_(DELETE_LOOPBACK_REPLY, delete_loopback_reply)                         \
-_(BD_IP_MAC_ADD_DEL_REPLY, bd_ip_mac_add_del_reply)                     \
-_(BD_IP_MAC_FLUSH_REPLY, bd_ip_mac_flush_reply)                         \
-_(BD_IP_MAC_DETAILS, bd_ip_mac_details)                                 \
-_(WANT_INTERFACE_EVENTS_REPLY, want_interface_events_reply)             \
-_(GET_FIRST_MSG_ID_REPLY, get_first_msg_id_reply)    			\
-_(GET_NODE_GRAPH_REPLY, get_node_graph_reply)                           \
-_(SW_INTERFACE_CLEAR_STATS_REPLY, sw_interface_clear_stats_reply)      \
-_(IOAM_ENABLE_REPLY, ioam_enable_reply)                   \
-_(IOAM_DISABLE_REPLY, ioam_disable_reply)                     \
-_(AF_PACKET_CREATE_REPLY, af_packet_create_reply)                       \
-_(AF_PACKET_DELETE_REPLY, af_packet_delete_reply)                       \
-_(AF_PACKET_DETAILS, af_packet_details)					\
-_(POLICER_ADD_DEL_REPLY, policer_add_del_reply)                         \
-_(POLICER_DETAILS, policer_details)                                     \
-_(POLICER_CLASSIFY_SET_INTERFACE_REPLY, policer_classify_set_interface_reply) \
-_(POLICER_CLASSIFY_DETAILS, policer_classify_details)                   \
-_(MPLS_TUNNEL_DETAILS, mpls_tunnel_details)                             \
-_(MPLS_TABLE_DETAILS, mpls_table_details)                               \
-_(MPLS_ROUTE_DETAILS, mpls_route_details)                               \
-_(CLASSIFY_TABLE_IDS_REPLY, classify_table_ids_reply)                   \
-_(CLASSIFY_TABLE_BY_INTERFACE_REPLY, classify_table_by_interface_reply) \
-_(CLASSIFY_TABLE_INFO_REPLY, classify_table_info_reply)                 \
-_(CLASSIFY_SESSION_DETAILS, classify_session_details)                   \
-_(SET_IPFIX_EXPORTER_REPLY, set_ipfix_exporter_reply)                   \
-_(IPFIX_EXPORTER_DETAILS, ipfix_exporter_details)                       \
-_(SET_IPFIX_CLASSIFY_STREAM_REPLY, set_ipfix_classify_stream_reply)     \
-_(IPFIX_CLASSIFY_STREAM_DETAILS, ipfix_classify_stream_details)         \
-_(IPFIX_CLASSIFY_TABLE_ADD_DEL_REPLY, ipfix_classify_table_add_del_reply) \
-_(IPFIX_CLASSIFY_TABLE_DETAILS, ipfix_classify_table_details)           \
-_(FLOW_CLASSIFY_SET_INTERFACE_REPLY, flow_classify_set_interface_reply) \
-_(FLOW_CLASSIFY_DETAILS, flow_classify_details)                         \
-_(SW_INTERFACE_SPAN_ENABLE_DISABLE_REPLY, sw_interface_span_enable_disable_reply) \
-_(SW_INTERFACE_SPAN_DETAILS, sw_interface_span_details)                 \
-_(GET_NEXT_INDEX_REPLY, get_next_index_reply)                           \
-_(PG_CREATE_INTERFACE_REPLY, pg_create_interface_reply)                 \
-_(PG_CAPTURE_REPLY, pg_capture_reply)                                   \
-_(PG_ENABLE_DISABLE_REPLY, pg_enable_disable_reply)                     \
-_(PG_INTERFACE_ENABLE_DISABLE_COALESCE_REPLY, pg_interface_enable_disable_coalesce_reply) \
-_(IP_SOURCE_AND_PORT_RANGE_CHECK_ADD_DEL_REPLY,                         \
- ip_source_and_port_range_check_add_del_reply)                          \
-_(IP_SOURCE_AND_PORT_RANGE_CHECK_INTERFACE_ADD_DEL_REPLY,               \
- ip_source_and_port_range_check_interface_add_del_reply)                \
-_(DELETE_SUBIF_REPLY, delete_subif_reply)                               \
-_(L2_INTERFACE_PBB_TAG_REWRITE_REPLY, l2_interface_pbb_tag_rewrite_reply) \
-_(SET_PUNT_REPLY, set_punt_reply)                                       \
-_(IP_TABLE_DETAILS, ip_table_details)                                   \
-_(IP_ROUTE_DETAILS, ip_route_details)                                   \
-_(FEATURE_ENABLE_DISABLE_REPLY, feature_enable_disable_reply)           \
-_(FEATURE_GSO_ENABLE_DISABLE_REPLY, feature_gso_enable_disable_reply)   \
-_(SW_INTERFACE_TAG_ADD_DEL_REPLY, sw_interface_tag_add_del_reply)     	\
-_(SW_INTERFACE_ADD_DEL_MAC_ADDRESS_REPLY, sw_interface_add_del_mac_address_reply) \
-_(L2_XCONNECT_DETAILS, l2_xconnect_details)                             \
-_(HW_INTERFACE_SET_MTU_REPLY, hw_interface_set_mtu_reply)               \
-_(SW_INTERFACE_GET_TABLE_REPLY, sw_interface_get_table_reply)           \
-_(P2P_ETHERNET_ADD_REPLY, p2p_ethernet_add_reply)                       \
-_(P2P_ETHERNET_DEL_REPLY, p2p_ethernet_del_reply)                       \
-_(TCP_CONFIGURE_SRC_ADDRESSES_REPLY, tcp_configure_src_addresses_reply)	\
-_(APP_NAMESPACE_ADD_DEL_REPLY, app_namespace_add_del_reply)		\
-_(SESSION_RULE_ADD_DEL_REPLY, session_rule_add_del_reply)		\
-_(SESSION_RULES_DETAILS, session_rules_details)				\
-_(IP_CONTAINER_PROXY_ADD_DEL_REPLY, ip_container_proxy_add_del_reply)	\
-_(OUTPUT_ACL_SET_INTERFACE_REPLY, output_acl_set_interface_reply)       \
-_(QOS_RECORD_ENABLE_DISABLE_REPLY, qos_record_enable_disable_reply)		\
-_(FLOW_ADD_REPLY, flow_add_reply)   \
+#define foreach_vpe_api_reply_msg                                             \
+  _ (CREATE_LOOPBACK_REPLY, create_loopback_reply)                            \
+  _ (CREATE_LOOPBACK_INSTANCE_REPLY, create_loopback_instance_reply)          \
+  _ (SW_INTERFACE_DETAILS, sw_interface_details)                              \
+  _ (SW_INTERFACE_SET_FLAGS_REPLY, sw_interface_set_flags_reply)              \
+  _ (CONTROL_PING_REPLY, control_ping_reply)                                  \
+  _ (CLI_REPLY, cli_reply)                                                    \
+  _ (CLI_INBAND_REPLY, cli_inband_reply)                                      \
+  _ (SW_INTERFACE_ADD_DEL_ADDRESS_REPLY, sw_interface_add_del_address_reply)  \
+  _ (SW_INTERFACE_SET_RX_MODE_REPLY, sw_interface_set_rx_mode_reply)          \
+  _ (SW_INTERFACE_SET_RX_PLACEMENT_REPLY,                                     \
+     sw_interface_set_rx_placement_reply)                                     \
+  _ (SW_INTERFACE_RX_PLACEMENT_DETAILS, sw_interface_rx_placement_details)    \
+  _ (SW_INTERFACE_SET_TABLE_REPLY, sw_interface_set_table_reply)              \
+  _ (SW_INTERFACE_SET_MPLS_ENABLE_REPLY, sw_interface_set_mpls_enable_reply)  \
+  _ (SW_INTERFACE_SET_VPATH_REPLY, sw_interface_set_vpath_reply)              \
+  _ (SW_INTERFACE_SET_VXLAN_BYPASS_REPLY,                                     \
+     sw_interface_set_vxlan_bypass_reply)                                     \
+  _ (SW_INTERFACE_SET_VXLAN_GPE_BYPASS_REPLY,                                 \
+     sw_interface_set_vxlan_gpe_bypass_reply)                                 \
+  _ (SW_INTERFACE_SET_L2_XCONNECT_REPLY, sw_interface_set_l2_xconnect_reply)  \
+  _ (SW_INTERFACE_SET_L2_BRIDGE_REPLY, sw_interface_set_l2_bridge_reply)      \
+  _ (BRIDGE_DOMAIN_ADD_DEL_REPLY, bridge_domain_add_del_reply)                \
+  _ (BRIDGE_DOMAIN_DETAILS, bridge_domain_details)                            \
+  _ (BRIDGE_DOMAIN_SET_MAC_AGE_REPLY, bridge_domain_set_mac_age_reply)        \
+  _ (L2FIB_ADD_DEL_REPLY, l2fib_add_del_reply)                                \
+  _ (L2FIB_FLUSH_INT_REPLY, l2fib_flush_int_reply)                            \
+  _ (L2FIB_FLUSH_BD_REPLY, l2fib_flush_bd_reply)                              \
+  _ (L2_FLAGS_REPLY, l2_flags_reply)                                          \
+  _ (BRIDGE_FLAGS_REPLY, bridge_flags_reply)                                  \
+  _ (TAP_CREATE_V2_REPLY, tap_create_v2_reply)                                \
+  _ (TAP_DELETE_V2_REPLY, tap_delete_v2_reply)                                \
+  _ (SW_INTERFACE_TAP_V2_DETAILS, sw_interface_tap_v2_details)                \
+  _ (VIRTIO_PCI_CREATE_REPLY, virtio_pci_create_reply)                        \
+  _ (VIRTIO_PCI_CREATE_V2_REPLY, virtio_pci_create_v2_reply)                  \
+  _ (VIRTIO_PCI_DELETE_REPLY, virtio_pci_delete_reply)                        \
+  _ (SW_INTERFACE_VIRTIO_PCI_DETAILS, sw_interface_virtio_pci_details)        \
+  _ (BOND_CREATE_REPLY, bond_create_reply)                                    \
+  _ (BOND_CREATE2_REPLY, bond_create2_reply)                                  \
+  _ (BOND_DELETE_REPLY, bond_delete_reply)                                    \
+  _ (BOND_ADD_MEMBER_REPLY, bond_add_member_reply)                            \
+  _ (BOND_DETACH_MEMBER_REPLY, bond_detach_member_reply)                      \
+  _ (SW_INTERFACE_SET_BOND_WEIGHT_REPLY, sw_interface_set_bond_weight_reply)  \
+  _ (SW_BOND_INTERFACE_DETAILS, sw_bond_interface_details)                    \
+  _ (SW_MEMBER_INTERFACE_DETAILS, sw_member_interface_details)                \
+  _ (IP_ROUTE_ADD_DEL_REPLY, ip_route_add_del_reply)                          \
+  _ (IP_TABLE_ADD_DEL_REPLY, ip_table_add_del_reply)                          \
+  _ (IP_TABLE_REPLACE_BEGIN_REPLY, ip_table_replace_begin_reply)              \
+  _ (IP_TABLE_FLUSH_REPLY, ip_table_flush_reply)                              \
+  _ (IP_TABLE_REPLACE_END_REPLY, ip_table_replace_end_reply)                  \
+  _ (IP_MROUTE_ADD_DEL_REPLY, ip_mroute_add_del_reply)                        \
+  _ (MPLS_TABLE_ADD_DEL_REPLY, mpls_table_add_del_reply)                      \
+  _ (MPLS_ROUTE_ADD_DEL_REPLY, mpls_route_add_del_reply)                      \
+  _ (MPLS_IP_BIND_UNBIND_REPLY, mpls_ip_bind_unbind_reply)                    \
+  _ (BIER_ROUTE_ADD_DEL_REPLY, bier_route_add_del_reply)                      \
+  _ (BIER_TABLE_ADD_DEL_REPLY, bier_table_add_del_reply)                      \
+  _ (MPLS_TUNNEL_ADD_DEL_REPLY, mpls_tunnel_add_del_reply)                    \
+  _ (SW_INTERFACE_SET_UNNUMBERED_REPLY, sw_interface_set_unnumbered_reply)    \
+  _ (CREATE_VLAN_SUBIF_REPLY, create_vlan_subif_reply)                        \
+  _ (CREATE_SUBIF_REPLY, create_subif_reply)                                  \
+  _ (SET_IP_FLOW_HASH_REPLY, set_ip_flow_hash_reply)                          \
+  _ (SW_INTERFACE_IP6_ENABLE_DISABLE_REPLY,                                   \
+     sw_interface_ip6_enable_disable_reply)                                   \
+  _ (L2_PATCH_ADD_DEL_REPLY, l2_patch_add_del_reply)                          \
+  _ (SR_MPLS_POLICY_ADD_REPLY, sr_mpls_policy_add_reply)                      \
+  _ (SR_MPLS_POLICY_MOD_REPLY, sr_mpls_policy_mod_reply)                      \
+  _ (SR_MPLS_POLICY_DEL_REPLY, sr_mpls_policy_del_reply)                      \
+  _ (SR_POLICY_ADD_REPLY, sr_policy_add_reply)                                \
+  _ (SR_POLICY_ADD_V2_REPLY, sr_policy_add_v2_reply)                          \
+  _ (PT_IFACE_ADD_REPLY, pt_iface_add_reply)                                  \
+  _ (PT_IFACE_DEL_REPLY, pt_iface_del_reply)                                  \
+  _ (PT_PROBE_INJECT_IFACE_ADD_REPLY, pt_probe_inject_iface_add_reply)        \
+  _ (PT_PROBE_INJECT_IFACE_DEL_REPLY, pt_probe_inject_iface_del_reply)        \
+  _ (SR_POLICY_MOD_REPLY, sr_policy_mod_reply)                                \
+  _ (SR_POLICY_DEL_REPLY, sr_policy_del_reply)                                \
+  _ (SR_LOCALSID_ADD_DEL_REPLY, sr_localsid_add_del_reply)                    \
+  _ (SR_STEERING_ADD_DEL_REPLY, sr_steering_add_del_reply)                    \
+  _ (CLASSIFY_ADD_DEL_TABLE_REPLY, classify_add_del_table_reply)              \
+  _ (CLASSIFY_ADD_DEL_SESSION_REPLY, classify_add_del_session_reply)          \
+  _ (CLASSIFY_SET_INTERFACE_IP_TABLE_REPLY,                                   \
+     classify_set_interface_ip_table_reply)                                   \
+  _ (CLASSIFY_SET_INTERFACE_L2_TABLES_REPLY,                                  \
+     classify_set_interface_l2_tables_reply)                                  \
+  _ (GET_NODE_INDEX_REPLY, get_node_index_reply)                              \
+  _ (ADD_NODE_NEXT_REPLY, add_node_next_reply)                                \
+  _ (VXLAN_ADD_DEL_TUNNEL_REPLY, vxlan_add_del_tunnel_reply)                  \
+  _ (VXLAN_OFFLOAD_RX_REPLY, vxlan_offload_rx_reply)                          \
+  _ (VXLAN_TUNNEL_DETAILS, vxlan_tunnel_details)                              \
+  _ (L2_FIB_CLEAR_TABLE_REPLY, l2_fib_clear_table_reply)                      \
+  _ (L2_INTERFACE_EFP_FILTER_REPLY, l2_interface_efp_filter_reply)            \
+  _ (L2_INTERFACE_VLAN_TAG_REWRITE_REPLY,                                     \
+     l2_interface_vlan_tag_rewrite_reply)                                     \
+  _ (SW_INTERFACE_VHOST_USER_DETAILS, sw_interface_vhost_user_details)        \
+  _ (CREATE_VHOST_USER_IF_REPLY, create_vhost_user_if_reply)                  \
+  _ (MODIFY_VHOST_USER_IF_REPLY, modify_vhost_user_if_reply)                  \
+  _ (CREATE_VHOST_USER_IF_V2_REPLY, create_vhost_user_if_v2_reply)            \
+  _ (MODIFY_VHOST_USER_IF_V2_REPLY, modify_vhost_user_if_v2_reply)            \
+  _ (DELETE_VHOST_USER_IF_REPLY, delete_vhost_user_if_reply)                  \
+  _ (SHOW_VERSION_REPLY, show_version_reply)                                  \
+  _ (SHOW_THREADS_REPLY, show_threads_reply)                                  \
+  _ (L2_FIB_TABLE_DETAILS, l2_fib_table_details)                              \
+  _ (VXLAN_GPE_ADD_DEL_TUNNEL_REPLY, vxlan_gpe_add_del_tunnel_reply)          \
+  _ (VXLAN_GPE_TUNNEL_DETAILS, vxlan_gpe_tunnel_details)                      \
+  _ (INTERFACE_NAME_RENUMBER_REPLY, interface_name_renumber_reply)            \
+  _ (WANT_L2_MACS_EVENTS_REPLY, want_l2_macs_events_reply)                    \
+  _ (L2_MACS_EVENT, l2_macs_event)                                            \
+  _ (INPUT_ACL_SET_INTERFACE_REPLY, input_acl_set_interface_reply)            \
+  _ (IP_ADDRESS_DETAILS, ip_address_details)                                  \
+  _ (IP_DETAILS, ip_details)                                                  \
+  _ (IPSEC_SPD_ADD_DEL_REPLY, ipsec_spd_add_del_reply)                        \
+  _ (IPSEC_INTERFACE_ADD_DEL_SPD_REPLY, ipsec_interface_add_del_spd_reply)    \
+  _ (IPSEC_SPD_ENTRY_ADD_DEL_REPLY, ipsec_spd_entry_add_del_reply)            \
+  _ (IPSEC_SAD_ENTRY_ADD_DEL_REPLY, ipsec_sad_entry_add_del_reply)            \
+  _ (IPSEC_SA_DETAILS, ipsec_sa_details)                                      \
+  _ (DELETE_LOOPBACK_REPLY, delete_loopback_reply)                            \
+  _ (BD_IP_MAC_ADD_DEL_REPLY, bd_ip_mac_add_del_reply)                        \
+  _ (BD_IP_MAC_FLUSH_REPLY, bd_ip_mac_flush_reply)                            \
+  _ (BD_IP_MAC_DETAILS, bd_ip_mac_details)                                    \
+  _ (WANT_INTERFACE_EVENTS_REPLY, want_interface_events_reply)                \
+  _ (GET_FIRST_MSG_ID_REPLY, get_first_msg_id_reply)                          \
+  _ (GET_NODE_GRAPH_REPLY, get_node_graph_reply)                              \
+  _ (SW_INTERFACE_CLEAR_STATS_REPLY, sw_interface_clear_stats_reply)          \
+  _ (IOAM_ENABLE_REPLY, ioam_enable_reply)                                    \
+  _ (IOAM_DISABLE_REPLY, ioam_disable_reply)                                  \
+  _ (AF_PACKET_CREATE_REPLY, af_packet_create_reply)                          \
+  _ (AF_PACKET_DELETE_REPLY, af_packet_delete_reply)                          \
+  _ (AF_PACKET_DETAILS, af_packet_details)                                    \
+  _ (POLICER_ADD_DEL_REPLY, policer_add_del_reply)                            \
+  _ (POLICER_DETAILS, policer_details)                                        \
+  _ (POLICER_CLASSIFY_SET_INTERFACE_REPLY,                                    \
+     policer_classify_set_interface_reply)                                    \
+  _ (POLICER_CLASSIFY_DETAILS, policer_classify_details)                      \
+  _ (MPLS_TUNNEL_DETAILS, mpls_tunnel_details)                                \
+  _ (MPLS_TABLE_DETAILS, mpls_table_details)                                  \
+  _ (MPLS_ROUTE_DETAILS, mpls_route_details)                                  \
+  _ (CLASSIFY_TABLE_IDS_REPLY, classify_table_ids_reply)                      \
+  _ (CLASSIFY_TABLE_BY_INTERFACE_REPLY, classify_table_by_interface_reply)    \
+  _ (CLASSIFY_TABLE_INFO_REPLY, classify_table_info_reply)                    \
+  _ (CLASSIFY_SESSION_DETAILS, classify_session_details)                      \
+  _ (SET_IPFIX_EXPORTER_REPLY, set_ipfix_exporter_reply)                      \
+  _ (IPFIX_EXPORTER_DETAILS, ipfix_exporter_details)                          \
+  _ (SET_IPFIX_CLASSIFY_STREAM_REPLY, set_ipfix_classify_stream_reply)        \
+  _ (IPFIX_CLASSIFY_STREAM_DETAILS, ipfix_classify_stream_details)            \
+  _ (IPFIX_CLASSIFY_TABLE_ADD_DEL_REPLY, ipfix_classify_table_add_del_reply)  \
+  _ (IPFIX_CLASSIFY_TABLE_DETAILS, ipfix_classify_table_details)              \
+  _ (FLOW_CLASSIFY_SET_INTERFACE_REPLY, flow_classify_set_interface_reply)    \
+  _ (FLOW_CLASSIFY_DETAILS, flow_classify_details)                            \
+  _ (SW_INTERFACE_SPAN_ENABLE_DISABLE_REPLY,                                  \
+     sw_interface_span_enable_disable_reply)                                  \
+  _ (SW_INTERFACE_SPAN_DETAILS, sw_interface_span_details)                    \
+  _ (GET_NEXT_INDEX_REPLY, get_next_index_reply)                              \
+  _ (PG_CREATE_INTERFACE_REPLY, pg_create_interface_reply)                    \
+  _ (PG_CAPTURE_REPLY, pg_capture_reply)                                      \
+  _ (PG_ENABLE_DISABLE_REPLY, pg_enable_disable_reply)                        \
+  _ (PG_INTERFACE_ENABLE_DISABLE_COALESCE_REPLY,                              \
+     pg_interface_enable_disable_coalesce_reply)                              \
+  _ (IP_SOURCE_AND_PORT_RANGE_CHECK_ADD_DEL_REPLY,                            \
+     ip_source_and_port_range_check_add_del_reply)                            \
+  _ (IP_SOURCE_AND_PORT_RANGE_CHECK_INTERFACE_ADD_DEL_REPLY,                  \
+     ip_source_and_port_range_check_interface_add_del_reply)                  \
+  _ (DELETE_SUBIF_REPLY, delete_subif_reply)                                  \
+  _ (L2_INTERFACE_PBB_TAG_REWRITE_REPLY, l2_interface_pbb_tag_rewrite_reply)  \
+  _ (SET_PUNT_REPLY, set_punt_reply)                                          \
+  _ (IP_TABLE_DETAILS, ip_table_details)                                      \
+  _ (IP_ROUTE_DETAILS, ip_route_details)                                      \
+  _ (FEATURE_ENABLE_DISABLE_REPLY, feature_enable_disable_reply)              \
+  _ (FEATURE_GSO_ENABLE_DISABLE_REPLY, feature_gso_enable_disable_reply)      \
+  _ (SW_INTERFACE_TAG_ADD_DEL_REPLY, sw_interface_tag_add_del_reply)          \
+  _ (SW_INTERFACE_ADD_DEL_MAC_ADDRESS_REPLY,                                  \
+     sw_interface_add_del_mac_address_reply)                                  \
+  _ (L2_XCONNECT_DETAILS, l2_xconnect_details)                                \
+  _ (HW_INTERFACE_SET_MTU_REPLY, hw_interface_set_mtu_reply)                  \
+  _ (SW_INTERFACE_GET_TABLE_REPLY, sw_interface_get_table_reply)              \
+  _ (P2P_ETHERNET_ADD_REPLY, p2p_ethernet_add_reply)                          \
+  _ (P2P_ETHERNET_DEL_REPLY, p2p_ethernet_del_reply)                          \
+  _ (TCP_CONFIGURE_SRC_ADDRESSES_REPLY, tcp_configure_src_addresses_reply)    \
+  _ (APP_NAMESPACE_ADD_DEL_REPLY, app_namespace_add_del_reply)                \
+  _ (SESSION_RULE_ADD_DEL_REPLY, session_rule_add_del_reply)                  \
+  _ (SESSION_RULES_DETAILS, session_rules_details)                            \
+  _ (IP_CONTAINER_PROXY_ADD_DEL_REPLY, ip_container_proxy_add_del_reply)      \
+  _ (OUTPUT_ACL_SET_INTERFACE_REPLY, output_acl_set_interface_reply)          \
+  _ (QOS_RECORD_ENABLE_DISABLE_REPLY, qos_record_enable_disable_reply)        \
+  _ (FLOW_ADD_REPLY, flow_add_reply)
 
 #define foreach_standalone_reply_msg					\
 _(SW_INTERFACE_EVENT, sw_interface_event)
@@ -7469,6 +7484,167 @@ api_sr_localsid_add_del (vat_main_t * vam)
   mp->end_psp = end_psp;
   mp->is_del = is_del;
 
+  S (mp);
+  W (ret);
+  return ret;
+}
+
+static int
+api_pt_iface_add (vat_main_t *vam)
+{
+  unformat_input_t *i = vam->input;
+  vl_api_pt_iface_add_t *mp;
+  u32 sw_if_index = ~0;
+  u32 id = ~0;
+  u8 ingress_load = 0;
+  u8 egress_load = 0;
+  u8 tts_template = 2;
+  int ret;
+
+  while (unformat_check_input (i) != UNFORMAT_END_OF_INPUT)
+    {
+      if (unformat (i, "iface %U", api_unformat_sw_if_index, vam,
+			 &sw_if_index));
+      else if (unformat (i, "id %u", &id));
+      else if (unformat (i, "ingress_load %u", &ingress_load));
+      else if (unformat (i, "egress_load %u", &egress_load));
+      else if (unformat (i, "tts_template %u", &tts_template));
+      else
+	{
+	  clib_warning ("parse error '%U'", format_unformat_error, i);
+	  return -99;
+	}
+    }
+
+  if (sw_if_index == ~0)
+    {
+      errmsg ("missing iface-name parameter");
+      return -99;
+    }
+
+  if (id == ~0 || id > PT_ID_MAX)
+    {
+      errmsg ("inavlid id parameter");
+      return -99;
+    }
+
+  if (ingress_load > PT_LOAD_MAX || egress_load > PT_LOAD_MAX)
+    {
+      errmsg ("inavlid load parameter");
+      return -99;
+    }
+
+  if (tts_template > PT_TTS_TEMPLATE_MAX)
+    {
+      errmsg ("inavlid tts_template parameter");
+      return -99;
+    }
+
+  M (PT_IFACE_ADD, mp);
+  mp->sw_if_index = ntohl (sw_if_index);
+  mp->id = ntohs (id);
+  mp->ingress_load = ingress_load;
+  mp->egress_load = egress_load;
+  mp->tts_template = tts_template;
+  S (mp);
+  W (ret);
+  return ret;
+}
+
+static int
+api_pt_iface_del (vat_main_t *vam)
+{
+  unformat_input_t *i = vam->input;
+  vl_api_pt_iface_del_t *mp;
+  u32 sw_if_index = ~0;
+  int ret;
+
+  while (unformat_check_input (i) != UNFORMAT_END_OF_INPUT)
+    {
+      if (unformat (i, "iface %U", api_unformat_sw_if_index, vam,
+			 &sw_if_index))
+	;
+      else
+	{
+	  clib_warning ("parse error '%U'", format_unformat_error, i);
+	  return -99;
+	}
+    }
+
+  if (sw_if_index == ~0)
+    {
+      errmsg ("missing pt iface name parameter");
+      return -99;
+    }
+
+  M (PT_IFACE_DEL, mp);
+  mp->sw_if_index = ntohl (sw_if_index);
+  S (mp);
+  W (ret);
+  return ret;
+}
+
+static int
+api_pt_probe_inject_iface_add (vat_main_t *vam)
+{
+  unformat_input_t *i = vam->input;
+  vl_api_pt_probe_inject_iface_add_t *mp;
+  u32 sw_if_index = ~0;
+  int ret;
+
+  while (unformat_check_input (i) != UNFORMAT_END_OF_INPUT)
+    {
+      if (unformat (i, "iface %U", api_unformat_sw_if_index, vam,
+			 &sw_if_index))
+	;
+      else
+	{
+	  clib_warning ("parse error '%U'", format_unformat_error, i);
+	  return -99;
+	}
+    }
+
+  if (sw_if_index == ~0)
+    {
+      errmsg ("missing pt iface name parameter");
+      return -99;
+    }
+
+  M (PT_PROBE_INJECT_IFACE_ADD, mp);
+  mp->sw_if_index = ntohl (sw_if_index);
+  S (mp);
+  W (ret);
+  return ret;
+}
+
+static int
+api_pt_probe_inject_iface_del (vat_main_t *vam)
+{
+  unformat_input_t *i = vam->input;
+  vl_api_pt_probe_inject_iface_del_t *mp;
+  u32 sw_if_index = ~0;
+  int ret;
+
+  while (unformat_check_input (i) != UNFORMAT_END_OF_INPUT)
+    {
+      if (unformat (i, "iface %U", api_unformat_sw_if_index, vam,
+			 &sw_if_index))
+	;
+      else
+	{
+	  clib_warning ("parse error '%U'", format_unformat_error, i);
+	  return -99;
+	}
+    }
+
+  if (sw_if_index == ~0)
+    {
+      errmsg ("missing pt iface name parameter");
+      return -99;
+    }
+
+  M (PT_PROBE_INJECT_IFACE_DEL, mp);
+  mp->sw_if_index = ntohl (sw_if_index);
   S (mp);
   W (ret);
   return ret;
@@ -14845,6 +15021,12 @@ _(l2_patch_add_del,                                                     \
 _(sr_localsid_add_del,                                                  \
   "(del) address <addr> next_hop <addr> behavior <beh>\n"               \
   "fib-table <num> (end.psp) sw_if_index <num>")                        \
+_(pt_iface_add, "iface <iface-name> id <pt-iface-id>\n"                 \
+  "ingress-load <ingress-load-value> egress-load <egress-load-value>\n" \
+  "tts-template <truncated-timestamp-template>")                        \
+_(pt_iface_del, "iface <iface-name>")                                   \
+_(pt_probe_inject_iface_add, "iface <iface-name>")                      \
+_(pt_probe_inject_iface_del, "iface <iface-name>")                      \
 _(classify_add_del_table,                                               \
   "buckets <nn> [skip <n>] [match <n>] [memory_size <nn-bytes>]\n"	\
   " [del] [del-chain] mask <mask-value>\n"                              \
